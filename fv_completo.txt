@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import SearchSelect from './SearchSelect';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -24,7 +24,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     loja_id: '', // NOVO: Campo de loja
     codigo: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
     lucro_final: 0, data_venda: new Date().toISOString().split('T')[0],
-    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: ''
+    situacao: 'Finalizada', tipo_pagamento: '├Ç Vista', observacao: ''
   });
   const [itens, setItens] = useState<any[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -33,7 +33,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(false);
   const [novoItem, setNovoItem] = useState({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0 });
-  // Modal rápido de novo cliente
+  // Modal r├ípido de novo cliente
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -48,7 +48,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         vendedor_id: venda.vendedor_id?.toString() || '', valor_total: venda.valor_total || 0,
         lucro_parcial: venda.lucro_parcial || 0, lucro_final: venda.lucro_final || 0,
         data_venda: venda.data_venda?.split('T')[0] || new Date().toISOString().split('T')[0],
-        situacao: venda.situacao || 'Finalizada', tipo_pagamento: venda.tipo_pagamento || 'À Vista',
+        situacao: venda.situacao || 'Finalizada', tipo_pagamento: venda.tipo_pagamento || '├Ç Vista',
         observacao: venda.observacao || ''
       });
       carregarItens(venda.id);
@@ -56,7 +56,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       setForm({ 
         loja_id: '', // NOVO
         codigo: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, 
-        data_venda: new Date().toISOString().split('T')[0], situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '' 
+        data_venda: new Date().toISOString().split('T')[0], situacao: 'Finalizada', tipo_pagamento: '├Ç Vista', observacao: '' 
       });
       setItens([]);
     }
@@ -69,12 +69,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       supabase.from('produtos').select('id,nome,preco_venda,preco_custo').order('nome'), // REMOVIDO: quantidade_estoque
       supabase.from('lojas').select('id,nome').order('nome'), // NOVO: Carregar lojas
     ]);
-iif (c.data) setClientes(c.data as any);
+if (c.data) setClientes(c.data as any);
 if (v.data) setVendedores(v.data as any);
 if (p.data) setProdutos(p.data as any);
 if (l.data) setLojas(l.data as any);
-  };
-
   const carregarItens = async (vendaId: number) => {
     const { data } = await supabase.from('vendas_itens').select('*').eq('venda_id', vendaId);
     if (data) setItens(data);
@@ -109,7 +107,7 @@ if (l.data) setLojas(l.data as any);
   };
 
   const criarClienteRapido = async () => {
-    if (!novoCliente.nome.trim()) { toast.error('Nome do cliente é obrigatório'); return; }
+    if (!novoCliente.nome.trim()) { toast.error('Nome do cliente ├® obrigat├│rio'); return; }
     setLoadingCliente(true);
     try {
       const { data, error } = await supabase.from('clientes').insert([{
@@ -137,8 +135,8 @@ if (l.data) setLojas(l.data as any);
     }
   };
 
-  // NOVO: Função para deduzir estoque
- // NOVA: Função que chama a Edge Function
+  // NOVO: Fun├º├úo para deduzir estoque
+ // NOVA: Fun├º├úo que chama a Edge Function
 const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
   try {
     const lojaId = parseInt(form.loja_id);
@@ -168,10 +166,10 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
     }
 
     const data = await response.json();
-    console.log("✅ Estoque detraído com sucesso:", data);
+    console.log("Ô£à Estoque detra├¡do com sucesso:", data);
     return data;
   } catch (err: any) {
-    console.error("❌ Erro ao deduzir estoque:", err);
+    console.error("ÔØî Erro ao deduzir estoque:", err);
     throw new Error(`Erro ao atualizar estoque: ${err.message}`);
   }
 };
@@ -179,14 +177,14 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // NOVO: Validação de loja
+    // NOVO: Valida├º├úo de loja
     if (!form.loja_id) {
       toast.error('Selecione uma loja');
       return;
     }
     
     if (itens.length === 0) { 
-      toast.error('Adicione pelo menos um item à venda'); 
+      toast.error('Adicione pelo menos um item ├á venda'); 
       return; 
     }
     
@@ -257,7 +255,7 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
         {/* NOVO: Campo de Loja - DESTAQUE */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
           <Select 
-            label="🏪 Loja (Obrigatório)" 
+            label="­ƒÅ¬ Loja (Obrigat├│rio)" 
             value={form.loja_id} 
             onChange={handleChange} 
             name="loja_id"
@@ -267,7 +265,7 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input label="Código" value={form.codigo} onChange={handleChange} name="codigo" placeholder="Código da venda" />
+          <Input label="C├│digo" value={form.codigo} onChange={handleChange} name="codigo" placeholder="C├│digo da venda" />
           <div>
             <div className="flex items-end gap-2">
               <div className="flex-1">
@@ -286,10 +284,10 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input label="Data" type="date" value={form.data_venda} onChange={handleChange} name="data_venda" required />
-          <Select label="Situação" value={form.situacao} onChange={handleChange} name="situacao"
+          <Select label="Situa├º├úo" value={form.situacao} onChange={handleChange} name="situacao"
             options={[{ value: 'Finalizada', label: 'Finalizada' }, { value: 'Cancelada', label: 'Cancelada' }, { value: 'Em Aberto', label: 'Em Aberto' }]} />
           <Select label="Tipo Pagamento" value={form.tipo_pagamento} onChange={handleChange} name="tipo_pagamento"
-            options={[{ value: 'À Vista', label: 'À Vista' }, { value: 'Parcelado', label: 'Parcelado' }, { value: 'Cartão', label: 'Cartão' }, { value: 'PIX', label: 'PIX' }]} />
+            options={[{ value: '├Ç Vista', label: '├Ç Vista' }, { value: 'Parcelado', label: 'Parcelado' }, { value: 'Cart├úo', label: 'Cart├úo' }, { value: 'PIX', label: 'PIX' }]} />
         </div>
 
         {/* Itens da Venda */}
@@ -330,7 +328,7 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
           </div>
         </div>
 
-        <TextArea label="Observação" value={form.observacao} onChange={handleChange} name="observacao" />
+        <TextArea label="Observa├º├úo" value={form.observacao} onChange={handleChange} name="observacao" />
         
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -338,11 +336,11 @@ const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
         </div>
       </form>
 
-      {/* Modal rápido de Novo Cliente */}
+      {/* Modal r├ípido de Novo Cliente */}
       {showNovoCliente && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Novo Cliente Rápido</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Novo Cliente R├ípido</h3>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
