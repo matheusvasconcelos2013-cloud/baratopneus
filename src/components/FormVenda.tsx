@@ -126,7 +126,7 @@ if (l.data) setLojas(l.data as any);
         // Recarrega lista de clientes e seleciona o novo
         const { data: clientesAtualizados } = await supabase
           .from('clientes').select('id,nome').eq('status', 'Ativo').order('nome');
-        if (clientesAtualizados) setClientes(clientesAtualizados);
+       if (clientesAtualizados) setClientes(clientesAtualizados as any);
         setShowNovoCliente(false);
         setNovoCliente({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
       }
