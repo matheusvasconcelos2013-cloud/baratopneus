@@ -69,7 +69,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       supabase.from('produtos').select('id,nome,preco_venda,preco_custo').order('nome'), // REMOVIDO: quantidade_estoque
       supabase.from('lojas').select('id,nome').order('nome'), // NOVO: Carregar lojas
     ]);
-iif (c.data) setClientes(c.data as any);
+if (c.data) setClientes(c.data as any);
 if (v.data) setVendedores(v.data as any);
 if (p.data) setProdutos(p.data as any);
 if (l.data) setLojas(l.data as any);
