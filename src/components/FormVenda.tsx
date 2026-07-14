@@ -69,9 +69,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       supabase.from('produtos').select('id,nome,preco_venda,preco_custo').order('nome'), // REMOVIDO: quantidade_estoque
       supabase.from('lojas').select('id,nome').order('nome'), // NOVO: Carregar lojas
     ]);
-if (c.data) setClientes(c.data as Cliente[]);    if (v.data) setVendedores(v.data);
-    if (p.data) setProdutos(p.data);
-    if (l.data) setLojas(l.data); // NOVO
+if (c.data) setClientes(c.data as Cliente[]);    if (v.data) setVendedores(v.data as Vendedor[]);
+if (p.data) setProdutos(p.data as Produto[]);    if (l.data) setLojas(l.data as Loja[]);
   };
 
   const carregarItens = async (vendaId: number) => {
