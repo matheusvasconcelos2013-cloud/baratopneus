@@ -271,8 +271,7 @@ supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true
           <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
-              setNovoItem({ ...novoItem, produto_id: val, preco_custo: prod?.preco_custo || 0 });
-            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome}` }))}
+setNovoItem({ ...novoItem, produto_id: String(val), preco_custo: prod?.preco_custo || 0 });            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome}` }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
               onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseFloat(e.target.value) || 1 })} min={0.01} step="0.01" />
