@@ -292,7 +292,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatMoney(v)} />
+                  <Tooltip formatter={(v) => formatMoney(Number(v))} />
                   <Bar dataKey="faturamento" radius={[6, 6, 0, 0]}>
                     {resumoPorLoja.map((_, idx) => (
                       <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
@@ -314,8 +314,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatMoney(v)} />
-                  <Line type="monotone" dataKey="faturamento" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+<Tooltip formatter={(v) => formatMoney(Number(v))} />                  <Line type="monotone" dataKey="faturamento" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
