@@ -81,7 +81,7 @@ export default function RelatoriosPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50 print:bg-white">
-      <div className="hidden print:hidden"><Sidebar user={user} onLogout={handleLogout} /></div>
+      <div className="print:hidden"><Sidebar user={user} onLogout={handleLogout} /></div>
       <main className="flex-1 min-w-0 p-4 pt-20 md:p-8 print:p-4 print:pt-4">
         <header className="flex flex-wrap justify-between items-center gap-4 mb-8 print:hidden">
           <div>

@@ -157,15 +157,6 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
                   <td colSpan={5} className="text-center py-4 text-gray-400">Nenhum item cadastrado</td>
                 </tr>
               )}
-              {venda.codigo && (
-                <tr className="border-b border-gray-200 bg-white">
-                  <td className="py-3 px-4 text-sm text-gray-600 font-mono">21</td>
-                  <td className="py-3 px-4 text-sm font-medium text-gray-800">Pneu Remold 175/70-13</td>
-                  <td className="py-3 px-4 text-sm text-right text-gray-700">{formatMoney(179.90)}</td>
-                  <td className="py-3 px-4 text-sm text-center text-gray-700">2 Un</td>
-                  <td className="py-3 px-4 text-sm text-right font-bold text-gray-800">{formatMoney(359.80)}</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -209,7 +200,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Qtd. de Itens:</span>
-                <span>{itens.length > 0 ? itens.reduce((a: number, i: any) => a + (i.quantidade || 0), 0) : 2} un</span>
+                <span>{itens.reduce((a: number, i: any) => a + (i.quantidade || 0), 0)} un</span>
               </div>
               {venda.tipo_pagamento !== 'À Vista' && (
                 <div className="flex justify-between text-sm text-gray-600">
