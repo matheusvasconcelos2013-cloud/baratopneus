@@ -62,11 +62,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       supabase.from('produtos').select('id,nome,preco_venda,preco_custo,quantidade_estoque').order('nome'),
       supabase.from('lojas').select('id,nome').order('nome'),
     ]);
-    if (c.data) setClientes(c.data);
-    if (v.data) setVendedores(v.data);
-    if (p.data) setProdutos(p.data);
-    if (l.data) setLojas(l.data);
-  };
+if (c.data) setClientes(c.data as any);    
+if (v.data) setVendedores(v.data as any);
+if (p.data) setProdutos(p.data as any);
+if (l.data) setLojas(l.data as any);  };
 
   const carregarItens = async (vendaId: number) => {
     const { data } = await supabase.from('vendas_itens').select('*').eq('venda_id', vendaId);
