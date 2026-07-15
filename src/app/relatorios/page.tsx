@@ -15,10 +15,28 @@ export default function RelatoriosPage() {
   const [vendasRecentes, setVendasRecentes] = useState<any[]>([]);
   const [topClientes, setTopClientes] = useState<any[]>([]);
 
+  // Carregar período salvo
+  useEffect(() => {
+    const savedPeriodo = localStorage.getItem('relatorios_periodo');
+    if (savedPeriodo) {
+      setPeriodo(savedPeriodo);
+    }
+  }, []);
+
+  // Salvar período quando mudar
+  useEffect(() => {
+    localStorage.setItem('relatorios_periodo', periodo);
+  }, [periodo]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.push('/login'); return; }
-      setUser(session.user); gerarRelatorio();
+      setUser(session.user);
+      
+      // Carrega o relatório com o período salvo, se existir
+      const savedPeriodo = localStorage.getItem('relatorios_periodo') || 'mes';
+      setPeriodo(savedPeriodo);
+      gerarRelatorio(savedPeriodo);
     });
   }, [router]);
 

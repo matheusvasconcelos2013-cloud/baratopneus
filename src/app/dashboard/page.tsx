@@ -70,6 +70,24 @@ export default function DashboardPage() {
   const [lojaAtiva, setLojaAtiva] = useState<string>(''); // '' = todas
   const [lojas, setLojas] = useState<any[]>([]);
 
+  // Carregar dados salvos
+  useEffect(() => {
+    const savedPeriodo = localStorage.getItem('dashboard_periodo') as Periodo;
+    const savedDataRef = localStorage.getItem('dashboard_dataRef');
+    const savedLojaAtiva = localStorage.getItem('dashboard_lojaAtiva');
+
+    if (savedPeriodo) setPeriodo(savedPeriodo);
+    if (savedDataRef) setDataRef(new Date(savedDataRef));
+    if (savedLojaAtiva !== null) setLojaAtiva(savedLojaAtiva);
+  }, []);
+
+  // Salvar dados quando mudarem
+  useEffect(() => {
+    localStorage.setItem('dashboard_periodo', periodo);
+    localStorage.setItem('dashboard_dataRef', dataRef.toISOString());
+    localStorage.setItem('dashboard_lojaAtiva', lojaAtiva);
+  }, [periodo, dataRef, lojaAtiva]);
+
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [pneusPorLoja, setPneusPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);

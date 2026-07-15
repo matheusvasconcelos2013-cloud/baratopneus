@@ -20,30 +20,91 @@ interface VendaRow {
 export default function VendasPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [vendas, setVendas] = useState<VendaRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [periodo, setPeriodo] = useState('todos');
+  const [periodo, setPeriodo] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('vendas_periodo') || 'hoje';
+    }
+    return 'hoje';
+  });
   const [showForm, setShowForm] = useState(false);
   const [editingVenda, setEditingVenda] = useState<any>(null);
   const [showRecibo, setShowRecibo] = useState(false);
   const [reciboData, setReciboData] = useState<any>(null);
   const [reciboItens, setReciboItens] = useState<any[]>([]);
 
+  // Salvar período quando mudar
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.push('/login'); return; }
-      setUser(session.user);
-      carregarVendas();
-    });
+    localStorage.setItem('vendas_periodo', periodo);
+  }, [periodo]);
+
+  useEffect(() => {
+    const inicializar = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/login');
+          return;
+        }
+        setUser(session.user);
+
+        let isUserAdmin = false;
+        if (session.user?.email) {
+          const { data: colaborador } = await supabase
+            .from('colaboradores')
+            .select('is_admin')
+            .eq('email', session.user.email)
+            .maybeSingle();
+
+          if (colaborador?.is_admin) {
+            isUserAdmin = true;
+          }
+        }
+
+        setIsAdmin(isUserAdmin);
+
+        await carregarVendas();
+      } catch (err) {
+        console.error('Erro na inicialização:', err);
+        setLoading(false);
+      }
+    };
+
+    inicializar();
   }, [router]);
 
   const carregarVendas = async () => {
-    const { data } = await supabase
-      .from('vendas').select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome)')
-      .order('data_venda', { ascending: false }).limit(1000);
-    if (data) setVendas(data as any);
-    setLoading(false);
-  };
+  let todasVendas: any[] = [];
+  let pagina = 0;
+  const tamanhoPagina = 1000;
+  let temMais = true;
+
+  while (temMais) {
+    const { data, error } = await supabase
+      .from('vendas')
+      .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome)')
+      .order('data_venda', { ascending: false })
+      .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
+
+    if (error) {
+      console.error('Erro ao carregar vendas:', error);
+      break;
+    }
+
+    if (data && data.length > 0) {
+      todasVendas = [...todasVendas, ...data];
+      pagina++;
+      temMais = data.length === tamanhoPagina; // Se retornou menos que o tamanho da página, acabou
+    } else {
+      temMais = false;
+    }
+  }
+
+  setVendas(todasVendas as any);
+  setLoading(false);
+};
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
@@ -129,7 +190,12 @@ export default function VendasPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-2">
-          {[{ k: 'todos', l: 'Todas' }, { k: 'hoje', l: 'Hoje' }, { k: 'semana', l: '7 dias' }, { k: 'mes', l: '30 dias' }].map(i => (
+          {[
+            { k: 'hoje', l: 'Hoje' },
+            { k: 'semana', l: '7 dias' },
+            { k: 'mes', l: '30 dias' },
+            ...(isAdmin ? [{ k: 'todos', l: 'Todas' }] : [])
+          ].map(i => (
             <button key={i.k} onClick={() => setPeriodo(i.k)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
           ))}
