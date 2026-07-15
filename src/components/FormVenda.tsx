@@ -185,8 +185,7 @@ if (l.data) setLojas(l.data as any);  };
         toast.success(`Cliente "${novoCliente.nome}" cadastrado!`);
         setForm(prev => ({ ...prev, cliente_id: data[0].id.toString() }));
         const { data: clientesAtualizados } = await supabase.from('clientes').select('id,nome').eq('status', 'Ativo').order('nome');
-        if (clientesAtualizados) setClientes(clientesAtualizados);
-        setShowNovoCliente(false);
+if (clientesAtualizados) setClientes(clientesAtualizados as any);        setShowNovoCliente(false);
         setNovoCliente({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
       }
     } catch (err: any) {
