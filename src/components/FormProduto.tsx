@@ -163,14 +163,15 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">Quantidade em Estoque (Loja selecionada)</label>
             <Input 
-              type="number" 
-              value={form.quantidade_estoque} 
-              onChange={handleChange} 
-              name="quantidade_estoque" 
-              step="0.01" 
-              min={0}
-              placeholder="Digite a quantidade"
-            />
+  label=""
+  type="number" 
+  value={form.quantidade_estoque} 
+  onChange={handleChange} 
+  name="quantidade_estoque" 
+  step="0.01" 
+  min={0}
+  placeholder="Digite a quantidade"
+/>
             <p className="text-xs text-blue-600 mt-2">💡 Altere a loja acima para editar estoque de outra unidade</p>
           </div>
         )}
