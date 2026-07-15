@@ -56,7 +56,7 @@ export default function FornecedoresPage() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar user={user} onLogout={handleLogout} />
-      <main className="flex-1 p-8">
+      <main className="flex-1 min-w-0 p-4 pt-20 md:p-8">
         <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">🏭 Fornecedores</h1>

@@ -54,6 +54,12 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuItems, setMenuItems] = useState(baseMenuItems);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Fecha o menu mobile ao trocar de página
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -80,49 +86,80 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   }, [user]);
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-screen sticky top-0 flex flex-col">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <>
+      {/* Barra superior mobile */}
+      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <div>
-            <h2 className="font-bold text-gray-800">BS Oficina</h2>
-            <p className="text-xs text-gray-500">Sistema de Gestão</p>
-          </div>
+          <span className="font-bold text-gray-800 text-sm">BS Oficina</span>
         </div>
-      </div>
+        <button onClick={() => setMobileOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title="Abrir menu">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </header>
 
-      <nav className="flex-1 p-4 space-y-0.5 overflow-y-auto">
-        {menuItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link key={item.href} href={item.href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
-                isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
-              }`}>
-              {item.icon}
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Overlay do menu mobile */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
+      )}
 
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="text-sm truncate min-w-0">
-            <p className="font-medium text-gray-800 truncate">{user?.email}</p>
-            <p className="text-gray-500 text-xs">{isAdmin ? '👑 Administrador' : 'Vendedor'}</p>
+      <aside className={`w-64 bg-white border-r border-gray-200 h-screen fixed md:sticky top-0 left-0 flex flex-col z-50 transform transition-transform duration-200 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:translate-x-0`}>
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-800">BS Oficina</h2>
+              <p className="text-xs text-gray-500">Sistema de Gestão</p>
+            </div>
           </div>
-          <button onClick={onLogout} className="p-2 text-gray-400 hover:text-red-500 transition rounded-lg hover:bg-red-50 ml-2 shrink-0" title="Sair">
+          <button onClick={() => setMobileOpen(false)} className="md:hidden p-1.5 text-gray-400 hover:text-gray-700 rounded-lg" title="Fechar menu">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-      </div>
-    </aside>
+
+        <nav className="flex-1 p-4 space-y-0.5 overflow-y-auto">
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                }`}>
+                {item.icon}
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm truncate min-w-0">
+              <p className="font-medium text-gray-800 truncate">{user?.email}</p>
+              <p className="text-gray-500 text-xs">{isAdmin ? '👑 Administrador' : 'Vendedor'}</p>
+            </div>
+            <button onClick={onLogout} className="p-2 text-gray-400 hover:text-red-500 transition rounded-lg hover:bg-red-50 ml-2 shrink-0" title="Sair">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }
