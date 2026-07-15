@@ -137,8 +137,10 @@ export function formatMoney(value: number): string {
 
 export function formatDate(date: string): string {
   if (!date) return '-';
-  const d = new Date(date);
-  return d.toLocaleDateString('pt-BR');
+  const [datePart] = date.split('T');
+  const [ano, mes, dia] = datePart.split('-');
+  if (!ano || !mes || !dia) return '-';
+  return `${dia}/${mes}/${ano}`;
 }
 
 export function formatDateTime(date: string): string {

@@ -174,7 +174,8 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
                   <p className="text-xs text-yellow-600">
                     Data da venda: {formatDate(venda.data_venda)}<br />
                     Validade da garantia: {(() => {
-                      const d = new Date(venda.data_venda);
+                      const [ano, mes, dia] = venda.data_venda.split('T')[0].split('-').map(Number);
+                      const d = new Date(ano, mes - 1, dia);
                       d.setMonth(d.getMonth() + 3);
                       return d.toLocaleDateString('pt-BR');
                     })()}
