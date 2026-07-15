@@ -15,12 +15,21 @@ export default function ColaboradoresPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true });
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [form, setForm] = useState({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true, email: '', is_admin: false });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/login'); return; }
       setUser(session.user);
+
+      const { data: colaborador } = await supabase
+        .from('colaboradores')
+        .select('is_admin')
+        .eq('email', session.user.email)
+        .maybeSingle();
+      setIsAdmin(!!colaborador?.is_admin);
+
       carregar();
     });
   }, [router]);
@@ -33,18 +42,23 @@ export default function ColaboradoresPage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
-  const openNew = () => { setEditing(null); setForm({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true }); setShowForm(true); };
-  const openEdit = (item: any) => { setEditing(item); setForm({ nome: item.nome, funcao: item.funcao || '', telefone: item.telefone || '', comissao_percentual: item.comissao_percentual || 0, ativo: item.ativo !== false }); setShowForm(true); };
+  const openNew = () => { setEditing(null); setForm({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true, email: '', is_admin: false }); setShowForm(true); };
+  const openEdit = (item: any) => { setEditing(item); setForm({ nome: item.nome, funcao: item.funcao || '', telefone: item.telefone || '', comissao_percentual: item.comissao_percentual || 0, ativo: item.ativo !== false, email: item.email || '', is_admin: item.is_admin || false }); setShowForm(true); };
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
+      // Email e is_admin só podem ser alterados por administradores
+      const { email, is_admin, ...payload } = form;
+      const dados: any = payload;
+      if (isAdmin) { dados.email = email; dados.is_admin = is_admin; }
+
       if (editing) {
-        await supabase.from('colaboradores').update(form).eq('id', editing.id);
+        await supabase.from('colaboradores').update(dados).eq('id', editing.id);
         toast.success('Colaborador atualizado!');
       } else {
-        await supabase.from('colaboradores').insert([form]);
+        await supabase.from('colaboradores').insert([dados]);
         toast.success('Colaborador cadastrado!');
       }
       setShowForm(false); carregar();
@@ -83,6 +97,7 @@ export default function ColaboradoresPage() {
                   {item.comissao_percentual > 0 && <p className="text-sm text-blue-600 font-medium mt-1">Comissão: {item.comissao_percentual}%</p>}
                 </div>
                 <div className="flex items-center gap-2">
+                  {item.is_admin && <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">👑 Admin</span>}
                   <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${item.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{item.ativo ? 'Ativo' : 'Inativo'}</span>
                 </div>
               </div>
@@ -107,6 +122,17 @@ export default function ColaboradoresPage() {
               <input type="checkbox" id="ativo" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
               <label htmlFor="ativo" className="text-sm text-gray-700">Ativo</label>
             </div>
+
+            {isAdmin && (
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <p className="text-xs font-medium text-gray-500 uppercase">Acesso ao sistema (somente administradores)</p>
+                <Input label="Email de login" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="colaborador@email.com" />
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="is_admin" checked={form.is_admin} onChange={(e) => setForm({ ...form, is_admin: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
+                  <label htmlFor="is_admin" className="text-sm text-gray-700">É administrador (acessa o Dashboard Admin)</label>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
               <Button variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button type="submit">{editing ? 'Salvar' : 'Cadastrar'}</Button>

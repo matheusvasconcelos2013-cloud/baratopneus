@@ -12,6 +12,7 @@ export default function LojasPage() {
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editando, setEditando] = useState<Loja | null>(null);
   const [novaLoja, setNovaLoja] = useState({ nome: '', cidade: '', estado: '', telefone: '' });
 
   useEffect(() => {
@@ -38,14 +39,36 @@ export default function LojasPage() {
     router.push('/login');
   };
 
-  const criarLoja = async () => {
+  const abrirNova = () => {
+    setEditando(null);
+    setNovaLoja({ nome: '', cidade: '', estado: '', telefone: '' });
+    setShowModal(true);
+  };
+
+  const abrirEdicao = (loja: Loja) => {
+    setEditando(loja);
+    setNovaLoja({ nome: loja.nome, cidade: loja.cidade || '', estado: loja.estado || '', telefone: loja.telefone || '' });
+    setShowModal(true);
+  };
+
+  const salvarLoja = async () => {
     if (!novaLoja.nome) return;
-    const { error } = await supabase.from('lojas').insert([novaLoja]);
+    const { error } = editando
+      ? await supabase.from('lojas').update(novaLoja).eq('id', editando.id)
+      : await supabase.from('lojas').insert([novaLoja]);
     if (!error) {
       setShowModal(false);
+      setEditando(null);
       setNovaLoja({ nome: '', cidade: '', estado: '', telefone: '' });
       carregarLojas();
     }
+  };
+
+  const excluirLoja = async (loja: Loja) => {
+    if (!confirm(`Excluir "${loja.nome}"? Vendas e produtos ja vinculados a essa loja nao serao apagados.`)) return;
+    const { error } = await supabase.from('lojas').delete().eq('id', loja.id);
+    if (error) { alert(error.message); return; }
+    carregarLojas();
   };
 
   if (loading) return (
@@ -64,7 +87,7 @@ export default function LojasPage() {
             <p className="text-gray-500 mt-1">{lojas.length} lojas cadastradas</p>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={abrirNova}
             className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,6 +112,10 @@ export default function LojasPage() {
               {loja.telefone && (
                 <p className="text-sm text-gray-500 mt-1">{loja.telefone}</p>
               )}
+              <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                <button onClick={() => abrirEdicao(loja)} className="text-sm text-blue-600 hover:text-blue-700 font-medium">Editar</button>
+                <button onClick={() => excluirLoja(loja)} className="text-sm text-red-600 hover:text-red-700 font-medium">Excluir</button>
+              </div>
             </div>
           ))}
           {lojas.length === 0 && (
@@ -102,7 +129,7 @@ export default function LojasPage() {
         {showModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">Nova Loja</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-6">{editando ? 'Editar Loja' : 'Nova Loja'}</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
@@ -150,16 +177,16 @@ export default function LojasPage() {
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); setEditando(null); }}
                   className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={criarLoja}
+                  onClick={salvarLoja}
                   className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
-                  Cadastrar
+                  {editando ? 'Salvar' : 'Cadastrar'}
                 </button>
               </div>
             </div>

@@ -126,7 +126,7 @@ export default function VendasPage() {
       setReciboData({
         ...venda,
         cliente: clienteRes.data || { nome: venda.cliente?.nome || 'Consumidor' },
-        vendedor: { nome: venda.vendedor?.nome || 'Isabela' },
+        vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: { nome: 'Barato Pneus' },
         observacao: venda.observacao || 'Garantia de 3 meses contra defeitos de fabricação.'
       });
@@ -136,7 +136,7 @@ export default function VendasPage() {
       setReciboData({
         ...venda,
         cliente: { nome: venda.cliente?.nome || 'Consumidor' },
-        vendedor: { nome: venda.vendedor?.nome || 'Isabela' },
+        vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: { nome: 'Barato Pneus' },
         observacao: 'Garantia de 3 meses contra defeitos de fabricação.'
       });

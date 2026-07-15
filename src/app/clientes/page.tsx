@@ -86,7 +86,6 @@ export default function ClientesPage() {
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Nome</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">CPF/CNPJ</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Telefone</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Celular</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Cidade</th>
                   <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Status</th>
@@ -98,7 +97,6 @@ export default function ClientesPage() {
                   <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 text-sm font-medium text-gray-800">{c.nome}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.cpf_cnpj || '-'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{c.telefone || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.celular || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.cidade || '-'}</td>
                     <td className="py-3 px-4 text-center">

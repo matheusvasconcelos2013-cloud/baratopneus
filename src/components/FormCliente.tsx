@@ -104,9 +104,8 @@ export default function FormCliente({ isOpen, onClose, onSaved, cliente }: FormC
           <Input label="Bairro" value={form.bairro} onChange={handleChange} name="bairro" />
           <Input label="Cidade" value={form.cidade} onChange={handleChange} name="cidade" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input label="Estado" value={form.estado} onChange={handleChange} name="estado" maxLength={2} placeholder="SP" />
-          <Input label="Telefone" value={form.telefone} onChange={handleChange} name="telefone" placeholder="(11) 0000-0000" />
           <Input label="Celular" value={form.celular} onChange={handleChange} name="celular" placeholder="(11) 90000-0000" />
           <Input label="Celular 2" value={form.celular2} onChange={handleChange} name="celular2" placeholder="(11) 90000-0000" />
         </div>

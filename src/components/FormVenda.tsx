@@ -202,6 +202,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     e.preventDefault();
     if (itens.length === 0) { toast.error('Adicione pelo menos um item à venda'); return; }
     if (!form.loja_id) { toast.error('Selecione a loja'); return; }
+    if (!form.vendedor_id) { toast.error('Selecione o vendedor'); return; }
     setLoading(true);
 
     try {
@@ -303,7 +304,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Select label="Vendedor" value={form.vendedor_id} onChange={handleChange} name="vendedor_id"
+          <Select label="Vendedor *" value={form.vendedor_id} onChange={handleChange} name="vendedor_id"
             options={vendedores.map(v => ({ value: v.id, label: v.nome }))} placeholder="Selecione o vendedor" />
           <Input
             label="Data"
