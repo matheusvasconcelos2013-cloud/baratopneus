@@ -13,7 +13,7 @@ export default function LojasPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Loja | null>(null);
-  const [novaLoja, setNovaLoja] = useState({ nome: '', cidade: '', estado: '', telefone: '' });
+  const [novaLoja, setNovaLoja] = useState({ nome: '', endereco: '', cidade: '', estado: '', telefone: '' });
 
   useEffect(() => {
     const checkUser = async () => {
@@ -41,13 +41,13 @@ export default function LojasPage() {
 
   const abrirNova = () => {
     setEditando(null);
-    setNovaLoja({ nome: '', cidade: '', estado: '', telefone: '' });
+    setNovaLoja({ nome: '', endereco: '', cidade: '', estado: '', telefone: '' });
     setShowModal(true);
   };
 
   const abrirEdicao = (loja: Loja) => {
     setEditando(loja);
-    setNovaLoja({ nome: loja.nome, cidade: loja.cidade || '', estado: loja.estado || '', telefone: loja.telefone || '' });
+    setNovaLoja({ nome: loja.nome, endereco: loja.endereco || '', cidade: loja.cidade || '', estado: loja.estado || '', telefone: loja.telefone || '' });
     setShowModal(true);
   };
 
@@ -59,7 +59,7 @@ export default function LojasPage() {
     if (!error) {
       setShowModal(false);
       setEditando(null);
-      setNovaLoja({ nome: '', cidade: '', estado: '', telefone: '' });
+      setNovaLoja({ nome: '', endereco: '', cidade: '', estado: '', telefone: '' });
       carregarLojas();
     }
   };
@@ -106,6 +106,9 @@ export default function LojasPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-800">{loja.nome}</h3>
+              {loja.endereco && (
+                <p className="text-sm text-gray-500 mt-1">{loja.endereco}</p>
+              )}
               {loja.cidade && (
                 <p className="text-sm text-gray-500 mt-1">{loja.cidade}{loja.estado ? ` - ${loja.estado}` : ''}</p>
               )}
@@ -139,6 +142,16 @@ export default function LojasPage() {
                     onChange={(e) => setNovaLoja({ ...novaLoja, nome: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Loja Centro"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                  <input
+                    type="text"
+                    value={novaLoja.endereco}
+                    onChange={(e) => setNovaLoja({ ...novaLoja, endereco: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Avenida Major Pinheiro Froes, 1890 - Vila Maria de Maggi"
                   />
                 </div>
                 <div>

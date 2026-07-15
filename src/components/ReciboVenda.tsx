@@ -23,6 +23,10 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
   const data = new Date().toLocaleDateString('pt-BR');
   const hora = new Date().toLocaleTimeString('pt-BR');
 
+  const enderecoLoja = loja?.endereco
+    ? `${loja.endereco}${loja.cidade ? ' | ' + loja.cidade : ''}${loja.estado ? ' - ' + loja.estado : ''}`
+    : 'Avenida Major Pinheiro Froes 1890 | Vila Maria de Maggi | Suzano - SP';
+
   return (
     <>
       {/* Botão de impressão (fora do print) */}
@@ -66,7 +70,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </h1>
               <div className="text-sm text-gray-600 mt-2 space-y-1">
                 <p className="flex items-center gap-2">
-                  <span>📍</span> Avenida Major Pinheiro Froes 1890 | Vila Maria de Maggi | Suzano - SP
+                  <span>📍</span> {enderecoLoja}
                 </p>
                 <p className="flex items-center gap-2">
                   <span>📞</span> {loja?.telefone || '(11) 9.7625-1152'}
@@ -147,7 +151,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               {itens.length > 0 ? itens.map((item: any, idx: number) => (
                 <tr key={idx} className={`border-b border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                   <td className="py-3 px-4 text-sm text-gray-600 font-mono">{item.produto_id || '-'}</td>
-                  <td className="py-3 px-4 text-sm font-medium text-gray-800">{item.produto_nome || `Produto #${item.produto_id}`}</td>
+                  <td className="py-3 px-4 text-sm font-medium text-gray-800">{item.produto_nome || item.produtos?.nome || `Produto #${item.produto_id}`}</td>
                   <td className="py-3 px-4 text-sm text-right text-gray-700">{formatMoney(item.preco_unitario)}</td>
                   <td className="py-3 px-4 text-sm text-center text-gray-700">{item.quantidade} Un</td>
                   <td className="py-3 px-4 text-sm text-right font-bold text-gray-800">{formatMoney(item.subtotal)}</td>

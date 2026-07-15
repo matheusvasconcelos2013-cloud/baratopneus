@@ -14,7 +14,7 @@ interface VendaRow {
   data_venda: string; situacao: string; tipo_pagamento: string; observacao?: string;
   cliente: { nome: string; cpf_cnpj?: string; celular?: string; telefone?: string; endereco?: string; numero?: string; bairro?: string } | null;
   vendedor: { nome: string } | null;
-  loja: { nome: string; telefone?: string } | null;
+  loja: { nome: string; telefone?: string; endereco?: string; cidade?: string; estado?: string } | null;
 }
 
 export default function VendasPage() {
@@ -84,7 +84,7 @@ export default function VendasPage() {
   while (temMais) {
     const { data, error } = await supabase
       .from('vendas')
-      .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome)')
+      .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
       .order('data_venda', { ascending: false })
       .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
 
@@ -119,7 +119,7 @@ export default function VendasPage() {
   const imprimirRecibo = async (venda: VendaRow) => {
     try {
       const [itensRes, clienteRes] = await Promise.all([
-        supabase.from('vendas_itens').select('*').eq('venda_id', venda.id),
+        supabase.from('vendas_itens').select('*, produtos(nome)').eq('venda_id', venda.id),
         supabase.from('clientes').select('*').eq('nome', venda.cliente?.nome || '').maybeSingle(),
       ]);
       
@@ -127,7 +127,7 @@ export default function VendasPage() {
         ...venda,
         cliente: clienteRes.data || { nome: venda.cliente?.nome || 'Consumidor' },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
-        loja: { nome: 'Barato Pneus' },
+        loja: venda.loja || { nome: 'Barato Pneus' },
         observacao: venda.observacao || 'Garantia de 3 meses contra defeitos de fabricação.'
       });
       setReciboItens(itensRes.data || []);
