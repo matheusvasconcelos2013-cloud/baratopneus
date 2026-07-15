@@ -62,10 +62,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       supabase.from('produtos').select('id,nome,preco_venda,preco_custo,quantidade_estoque').order('nome'),
       supabase.from('lojas').select('id,nome').order('nome'),
     ]);
-if (c.data) setClientes(c.data as any);    
-if (v.data) setVendedores(v.data as any);
-if (p.data) setProdutos(p.data as any);
-if (l.data) setLojas(l.data as any);  };
+    if (c.data) setClientes(c.data as any);
+    if (v.data) setVendedores(v.data as any);
+    if (p.data) setProdutos(p.data as any);
+    if (l.data) setLojas(l.data as any);
+  };
 
   const carregarItens = async (vendaId: number) => {
     const { data } = await supabase.from('vendas_itens').select('*').eq('venda_id', vendaId);
@@ -89,9 +90,9 @@ if (l.data) setLojas(l.data as any);  };
       if (item.garantia) return acc;
       return acc + ((item.preco_unitario - item.preco_custo) * item.quantidade);
     }, 0);
-    
+
     const custosGarantia = itens.filter(item => item.garantia).reduce((acc, item) => acc + (100 * item.quantidade), 0);
-    
+
     return lucroVendas - custosGarantia;
   };
 
@@ -185,7 +186,8 @@ if (l.data) setLojas(l.data as any);  };
         toast.success(`Cliente "${novoCliente.nome}" cadastrado!`);
         setForm(prev => ({ ...prev, cliente_id: data[0].id.toString() }));
         const { data: clientesAtualizados } = await supabase.from('clientes').select('id,nome').eq('status', 'Ativo').order('nome');
-if (clientesAtualizados) setClientes(clientesAtualizados as any);        setShowNovoCliente(false);
+        if (clientesAtualizados) setClientes(clientesAtualizados as any);
+        setShowNovoCliente(false);
         setNovoCliente({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
       }
     } catch (err: any) {
@@ -286,7 +288,7 @@ if (clientesAtualizados) setClientes(clientesAtualizados as any);        setShow
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <SearchSelect label="Cliente" value={form.cliente_id}
-                  onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val }))}
+                  onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val.toString() }))}
                   options={clientes.map(c => ({ value: c.id, label: c.nome }))}
                   placeholder="Digite o nome do cliente..." />
               </div>
@@ -302,18 +304,19 @@ if (clientesAtualizados) setClientes(clientesAtualizados as any);        setShow
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Select label="Vendedor" value={form.vendedor_id} onChange={handleChange} name="vendedor_id"
             options={vendedores.map(v => ({ value: v.id, label: v.nome }))} placeholder="Selecione o vendedor" />
-<Input 
-  label="Data" 
-  type="text" 
-  value={form.data_venda.split('-').reverse().join('/')} 
-  onChange={(e) => {
-    const [dia, mes, ano] = e.target.value.split('/');
-    setForm(prev => ({ ...prev, data_venda: `${ano}-${mes}-${dia}` }));
-  }}
-  name="data_venda" 
-  placeholder="DD/MM/YYYY"
-  required 
-/>          <Select label="Situação" value={form.situacao} onChange={handleChange} name="situacao"
+          <Input
+            label="Data"
+            type="text"
+            value={form.data_venda.split('-').reverse().join('/')}
+            onChange={(e) => {
+              const [dia, mes, ano] = e.target.value.split('/');
+              setForm(prev => ({ ...prev, data_venda: `${ano}-${mes}-${dia}` }));
+            }}
+            name="data_venda"
+            placeholder="DD/MM/YYYY"
+            required
+          />
+          <Select label="Situação" value={form.situacao} onChange={handleChange} name="situacao"
             options={[{ value: 'Finalizada', label: 'Finalizada' }, { value: 'Cancelada', label: 'Cancelada' }, { value: 'Em Aberto', label: 'Em Aberto' }]} />
           <Select label="Tipo Pagamento" value={form.tipo_pagamento} onChange={handleChange} name="tipo_pagamento"
             options={[{ value: 'À Vista', label: 'À Vista' }, { value: 'Parcelado', label: 'Parcelado' }, { value: 'Cartão', label: 'Cartão' }, { value: 'PIX', label: 'PIX' }]} />
@@ -346,7 +349,7 @@ if (clientesAtualizados) setClientes(clientesAtualizados as any);        setShow
           <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
-              setNovoItem({ ...novoItem, produto_id: val, preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0 });
+              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0 });
             }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
