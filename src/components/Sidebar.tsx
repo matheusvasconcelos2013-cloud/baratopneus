@@ -88,7 +88,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
   return (
     <>
       {/* Barra superior mobile */}
-      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
+      <header className="no-print md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,10 +108,10 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
       {/* Overlay do menu mobile */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
+        <div className="no-print md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside className={`w-64 bg-white border-r border-gray-200 h-screen fixed md:sticky top-0 left-0 flex flex-col z-50 transform transition-transform duration-200 ${
+      <aside className={`no-print w-64 bg-white border-r border-gray-200 h-screen fixed md:sticky top-0 left-0 flex flex-col z-50 transform transition-transform duration-200 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       } md:translate-x-0`}>
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
