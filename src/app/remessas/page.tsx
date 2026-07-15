@@ -83,12 +83,54 @@ export default function RemessasPage() {
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
   const excluir = async (id: number) => {
-    if (!confirm('Excluir esta remessa permanentemente?')) return;
+    if (!confirm('Excluir esta remessa permanentemente? O estoque será revertido!')) return;
     try {
+      // 1. Busca a remessa e seus itens
+      const remessaRes = await supabase.from('remessas').select('id, loja_id').eq('id', id).single();
+      const itensRes = await supabase.from('remessas_itens').select('*').eq('remessa_id', id);
+
+      if (!remessaRes.data || !itensRes.data) {
+        toast.error('Remessa não encontrada');
+        return;
+      }
+
+      const lojaId = remessaRes.data.loja_id;
+      const itens = itensRes.data;
+
+      // 2. Reverte o estoque de cada item
+      for (const item of itens) {
+        const estoqueAtual = await supabase
+          .from('estoque_lojas')
+          .select('id, quantidade')
+          .eq('produto_id', item.produto_id)
+          .eq('loja_id', lojaId)
+          .maybeSingle();
+
+        if (estoqueAtual.data) {
+          // Subtrai a quantidade que tinha sido adicionada
+          const novaQtd = Math.max(0, estoqueAtual.data.quantidade - item.quantidade);
+          await supabase
+            .from('estoque_lojas')
+            .update({ quantidade: novaQtd, updated_at: new Date().toISOString() })
+            .eq('id', estoqueAtual.data.id);
+
+          // Remove da movimentacao_estoque
+          await supabase
+            .from('movimentacao_estoque')
+            .delete()
+            .eq('remessa_id', id)
+            .eq('produto_id', item.produto_id);
+        }
+      }
+
+      // 3. Deleta os itens da remessa
       await supabase.from('remessas_itens').delete().eq('remessa_id', id);
+
+      // 4. Deleta a remessa
       const { error } = await supabase.from('remessas').delete().eq('id', id);
       if (error) { toast.error(error.message); return; }
-      toast.success('Remessa excluída');
+      
+      toast.success('Remessa excluída e estoque revertido!');
       carregar();
     } catch (err: any) {
       toast.error(err.message);
