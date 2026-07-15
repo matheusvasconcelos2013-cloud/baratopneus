@@ -5,6 +5,7 @@ interface InputProps {
   type?: string;
   value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   placeholder?: string;
   required?: boolean;
   className?: string;
@@ -15,7 +16,7 @@ interface InputProps {
   name?: string;
 }
 
-export function Input({ label, type = 'text', value, onChange, placeholder, required, className = '', disabled, min, step, maxLength, name }: InputProps) {
+export function Input({ label, type = 'text', value, onChange, onBlur, placeholder, required, className = '', disabled, min, step, maxLength, name }: InputProps) {
   return (
     <div className={className}>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && <span className="text-red-500 ml-1">*</span>}</label>
@@ -23,6 +24,7 @@ export function Input({ label, type = 'text', value, onChange, placeholder, requ
         type={type}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={required}
         disabled={disabled}

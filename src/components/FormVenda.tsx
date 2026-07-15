@@ -26,7 +26,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, garantia: false });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; garantia: boolean }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, garantia: false });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -103,12 +103,13 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const adicionarItem = () => {
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
+    const quantidade = Number(novoItem.quantidade) || 1;
     setItens(prev => [...prev, {
       produto_id: Number(novoItem.produto_id),
-      quantidade: novoItem.quantidade,
+      quantidade,
       preco_unitario: novoItem.preco_unitario || prod?.preco_venda || 0,
       preco_custo: novoItem.preco_custo || prod?.preco_custo || 0,
-      subtotal: novoItem.garantia ? 0 : ((novoItem.quantidade || 1) * (novoItem.preco_unitario || prod?.preco_venda || 0)),
+      subtotal: novoItem.garantia ? 0 : (quantidade * (novoItem.preco_unitario || prod?.preco_venda || 0)),
       produto_nome: prod?.nome,
       garantia: novoItem.garantia
     }]);
@@ -353,7 +354,14 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
-              onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseFloat(e.target.value) || 1 })} min={0.01} step="0.01" />
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === '') { setNovoItem({ ...novoItem, quantidade: '' }); return; }
+                const val = parseInt(raw, 10);
+                setNovoItem({ ...novoItem, quantidade: isNaN(val) ? '' : val });
+              }}
+              onBlur={() => { if (novoItem.quantidade === '') setNovoItem({ ...novoItem, quantidade: 1 }); }}
+              min={1} step="1" />
             <Input label="Preço Unitário" type="number" value={novoItem.preco_unitario}
               onChange={(e) => setNovoItem({ ...novoItem, preco_unitario: parseFloat(e.target.value) || 0 })} step="0.01" />
             <Input label="Preço Custo" type="number" value={novoItem.preco_custo}
