@@ -14,6 +14,9 @@ interface FormVendaProps {
   venda?: Venda | null;
 }
 
+const TEXTO_CAMBAGEM = `Veiculo apresenta desgaste excessivo na parte internas dos pneus que foram substituídos. Foi informado para o cliente que esse desgaste é provocado por irregularidade na cambagem do veiculo.
+Cliente foi orientado que é necessário fazer a correção da cambagem do veiculo, pois referida avaria causadas pelo problema da cambagem nos pneus resulta na perda da garantia dos pneus adquiridos pelo cliente.`;
+
 export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVendaProps) {
   const [form, setForm] = useState({
     codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
@@ -384,6 +387,22 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             )}
             <span className="text-lg font-bold text-gray-800">Lucro Final: {formatMoney(calcularLucro())}</span>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
+          <input type="checkbox" checked={form.observacao.includes(TEXTO_CAMBAGEM)}
+            onChange={(e) => {
+              setForm(prev => {
+                if (e.target.checked) {
+                  const obs = prev.observacao.trim() ? `${prev.observacao}\n\n${TEXTO_CAMBAGEM}` : TEXTO_CAMBAGEM;
+                  return { ...prev, observacao: obs };
+                }
+                const obs = prev.observacao.replace(`\n\n${TEXTO_CAMBAGEM}`, '').replace(TEXTO_CAMBAGEM, '').trim();
+                return { ...prev, observacao: obs };
+              });
+            }}
+            className="w-4 h-4 text-blue-600 rounded" />
+          <label className="text-sm text-gray-600">Cambagem</label>
         </div>
 
         <TextArea label="Observação" value={form.observacao} onChange={handleChange} name="observacao" />
