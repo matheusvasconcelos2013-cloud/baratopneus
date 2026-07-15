@@ -37,7 +37,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black to-gray-800 px-4">
       <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -79,14 +79,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+            className="w-full bg-black text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition disabled:opacity-50"
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Powered by Arena.ai
+          Feito por Matheus Abud
         </p>
       </div>
     </div>
