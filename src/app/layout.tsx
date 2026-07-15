@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
-  title: 'BS Oficina Web',
+  title: 'Barato Pneus',
   description: 'Sistema de Gestão de Pneus',
 };
 

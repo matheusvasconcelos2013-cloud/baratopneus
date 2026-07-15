@@ -41,12 +41,12 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">BS Oficina Web</h1>
+          <h1 className="text-2xl font-bold"><span className="text-gray-800">Barato</span> <span className="text-orange-500">Pneus</span></h1>
           <p className="text-gray-500 mt-1">Sistema de Gestão de Pneus</p>
         </div>
 

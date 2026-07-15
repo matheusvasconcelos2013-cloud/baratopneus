@@ -257,7 +257,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         <div className="border-t-2 border-gray-300 pt-4 text-center">
           <p className="text-gray-500 text-sm">📧 baratopneus@email.com | 📞 (11) 9.7625-1152</p>
           <p className="text-gray-400 text-xs mt-1">
-            Documento emitido em {data} às {hora} - BS Oficina Web
+            Documento emitido em {data} às {hora} - Barato Pneus
           </p>
           <div className="flex justify-center gap-8 mt-4 text-xs text-gray-400">
             <span>📄 Venda #{venda.codigo || venda.id}</span>

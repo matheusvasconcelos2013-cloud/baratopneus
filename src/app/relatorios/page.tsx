@@ -168,7 +168,7 @@ export default function RelatoriosPage() {
 
             {/* Rodapé do relatório para impressão */}
             <div className="hidden print:block mt-8 text-center text-sm text-gray-400">
-              Relatório gerado em {new Date().toLocaleString('pt-BR')} - BS Oficina Web
+              Relatório gerado em {new Date().toLocaleString('pt-BR')} - Barato Pneus
             </div>
           </>
         )}

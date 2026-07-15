@@ -90,12 +90,12 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       {/* Barra superior mobile */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <span className="font-bold text-gray-800 text-sm">BS Oficina</span>
+          <span className="font-bold text-sm"><span className="text-gray-800">Barato</span> <span className="text-orange-500">Pneus</span></span>
         </div>
         <button onClick={() => setMobileOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title="Abrir menu">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,13 +114,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       } md:translate-x-0`}>
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
             <div>
-              <h2 className="font-bold text-gray-800">BS Oficina</h2>
+              <h2 className="font-bold"><span className="text-gray-800">Barato</span> <span className="text-orange-500">Pneus</span></h2>
               <p className="text-xs text-gray-500">Sistema de Gestão</p>
             </div>
           </div>
