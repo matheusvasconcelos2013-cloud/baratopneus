@@ -14,26 +14,19 @@ interface FormVendaProps {
   venda?: Venda | null;
 }
 
-interface Loja {
-  id: number;
-  nome: string;
-}
-
 export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVendaProps) {
   const [form, setForm] = useState({
-    loja_id: '', // NOVO: Campo de loja
-    codigo: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
-    lucro_final: 0, data_venda: new Date().toISOString().split('T')[0],
+    codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
+    lucro_final: 0, data_venda: new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-'),
     situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: ''
   });
   const [itens, setItens] = useState<any[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendedores, setVendedores] = useState<Colaborador[]>([]);
-  const [lojas, setLojas] = useState<Loja[]>([]); // NOVO: Lista de lojas
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0 });
-  // Modal rápido de novo cliente
+  const [novoItem, setNovoItem] = useState({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, garantia: false });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -43,21 +36,21 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     carregarDados();
     if (venda) {
       setForm({
-        loja_id: venda.loja_id?.toString() || '', // NOVO
-        codigo: venda.codigo || '', cliente_id: venda.cliente_id?.toString() || '',
-        vendedor_id: venda.vendedor_id?.toString() || '', valor_total: venda.valor_total || 0,
-        lucro_parcial: venda.lucro_parcial || 0, lucro_final: venda.lucro_final || 0,
+        codigo: venda.codigo || '',
+        loja_id: (venda as any).loja_id?.toString() || '',
+        cliente_id: venda.cliente_id?.toString() || '',
+        vendedor_id: venda.vendedor_id?.toString() || '',
+        valor_total: venda.valor_total || 0,
+        lucro_parcial: venda.lucro_parcial || 0,
+        lucro_final: venda.lucro_final || 0,
         data_venda: venda.data_venda?.split('T')[0] || new Date().toISOString().split('T')[0],
-        situacao: venda.situacao || 'Finalizada', tipo_pagamento: venda.tipo_pagamento || 'À Vista',
+        situacao: venda.situacao || 'Finalizada',
+        tipo_pagamento: venda.tipo_pagamento || 'À Vista',
         observacao: venda.observacao || ''
       });
       carregarItens(venda.id);
     } else {
-      setForm({
-        loja_id: '', // NOVO
-        codigo: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0,
-        data_venda: new Date().toISOString().split('T')[0], situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: ''
-      });
+      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-'), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '' });
       setItens([]);
     }
   }, [venda, isOpen]);
@@ -66,13 +59,13 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     const [c, v, p, l] = await Promise.all([
       supabase.from('clientes').select('id,nome').eq('status', 'Ativo').order('nome'),
       supabase.from('colaboradores').select('id,nome').eq('ativo', true).order('nome'),
-      supabase.from('produtos').select('id,nome,preco_venda,preco_custo').order('nome'), // REMOVIDO: quantidade_estoque
-      supabase.from('lojas').select('id,nome').order('nome'), // NOVO: Carregar lojas
+      supabase.from('produtos').select('id,nome,preco_venda,preco_custo,quantidade_estoque').order('nome'),
+      supabase.from('lojas').select('id,nome').order('nome'),
     ]);
-    if (c.data) setClientes(c.data as any);
-    if (v.data) setVendedores(v.data as any);
-    if (p.data) setProdutos(p.data as any);
-    if (l.data) setLojas(l.data as any);
+    if (c.data) setClientes(c.data);
+    if (v.data) setVendedores(v.data);
+    if (p.data) setProdutos(p.data);
+    if (l.data) setLojas(l.data);
   };
 
   const carregarItens = async (vendaId: number) => {
@@ -85,6 +78,28 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     setForm(prev => ({ ...prev, [name]: ['valor_total', 'lucro_parcial', 'lucro_final'].includes(name) ? parseFloat(value) || 0 : value }));
   };
 
+  const calcularTotalVendas = () => {
+    return itens.reduce((acc, item) => {
+      if (item.garantia) return acc;
+      return acc + (item.subtotal || 0);
+    }, 0);
+  };
+
+  const calcularLucro = () => {
+    const lucroVendas = itens.reduce((acc, item) => {
+      if (item.garantia) return acc;
+      return acc + ((item.preco_unitario - item.preco_custo) * item.quantidade);
+    }, 0);
+    
+    const custosGarantia = itens.filter(item => item.garantia).reduce((acc, item) => acc + (100 * item.quantidade), 0);
+    
+    return lucroVendas - custosGarantia;
+  };
+
+  const contarGarantias = () => {
+    return itens.filter(item => item.garantia).reduce((acc, item) => acc + item.quantidade, 0);
+  };
+
   const adicionarItem = () => {
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
@@ -93,19 +108,69 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       quantidade: novoItem.quantidade,
       preco_unitario: novoItem.preco_unitario || prod?.preco_venda || 0,
       preco_custo: novoItem.preco_custo || prod?.preco_custo || 0,
-      subtotal: (novoItem.quantidade || 1) * (novoItem.preco_unitario || prod?.preco_venda || 0),
-      produto_nome: prod?.nome
+      subtotal: novoItem.garantia ? 0 : ((novoItem.quantidade || 1) * (novoItem.preco_unitario || prod?.preco_venda || 0)),
+      produto_nome: prod?.nome,
+      garantia: novoItem.garantia
     }]);
-    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0 });
+    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, garantia: false });
   };
 
-  const removerItem = (idx: number) => {
-    setItens(prev => prev.filter((_, i) => i !== idx));
+  const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
+
+  const deduzirEstoque = async (lojaId: number, vendaId: number) => {
+    for (const item of itens) {
+      const { data: estoqueAtual } = await supabase
+        .from('estoque_lojas')
+        .select('id, quantidade')
+        .eq('produto_id', item.produto_id)
+        .eq('loja_id', lojaId)
+        .maybeSingle();
+
+      if (estoqueAtual) {
+        const novaQtd = Math.max(0, estoqueAtual.quantidade - item.quantidade);
+        await supabase
+          .from('estoque_lojas')
+          .update({ quantidade: novaQtd, updated_at: new Date().toISOString() })
+          .eq('id', estoqueAtual.id);
+      } else {
+        await supabase.from('estoque_lojas').insert([{
+          produto_id: item.produto_id,
+          loja_id: lojaId,
+          quantidade: 0,
+        }]);
+      }
+
+      await supabase.from('movimentacao_estoque').insert([{
+        produto_id: item.produto_id,
+        loja_id: lojaId,
+        tipo: 'Saída',
+        quantidade: item.quantidade,
+        motivo: item.garantia ? 'Garantia' : 'Venda',
+        referencia_id: vendaId,
+      }]);
+    }
   };
 
-  const calcularTotal = () => {
-    const total = itens.reduce((acc, item) => acc + (item.subtotal || 0), 0);
-    return total;
+  const reverterEstoque = async (lojaId: number, vendaId: number) => {
+    const { data: itensAntigos } = await supabase
+      .from('vendas_itens').select('*').eq('venda_id', vendaId);
+    if (!itensAntigos) return;
+
+    for (const item of itensAntigos) {
+      const { data: estoqueAtual } = await supabase
+        .from('estoque_lojas')
+        .select('id, quantidade')
+        .eq('produto_id', item.produto_id)
+        .eq('loja_id', lojaId)
+        .maybeSingle();
+
+      if (estoqueAtual) {
+        await supabase
+          .from('estoque_lojas')
+          .update({ quantidade: estoqueAtual.quantidade + item.quantidade, updated_at: new Date().toISOString() })
+          .eq('id', estoqueAtual.id);
+      }
+    }
   };
 
   const criarClienteRapido = async () => {
@@ -113,20 +178,15 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     setLoadingCliente(true);
     try {
       const { data, error } = await supabase.from('clientes').insert([{
-        nome: novoCliente.nome,
-        telefone: novoCliente.telefone,
-        celular: novoCliente.celular,
-        cpf_cnpj: novoCliente.cpf_cnpj,
-        status: 'Ativo',
+        nome: novoCliente.nome, telefone: novoCliente.telefone,
+        celular: novoCliente.celular, cpf_cnpj: novoCliente.cpf_cnpj, status: 'Ativo',
       }]).select();
       if (error) throw error;
       if (data) {
         toast.success(`Cliente "${novoCliente.nome}" cadastrado!`);
         setForm(prev => ({ ...prev, cliente_id: data[0].id.toString() }));
-        // Recarrega lista de clientes e seleciona o novo
-        const { data: clientesAtualizados } = await supabase
-          .from('clientes').select('id,nome').eq('status', 'Ativo').order('nome');
-        if (clientesAtualizados) setClientes(clientesAtualizados as any);
+        const { data: clientesAtualizados } = await supabase.from('clientes').select('id,nome').eq('status', 'Ativo').order('nome');
+        if (clientesAtualizados) setClientes(clientesAtualizados);
         setShowNovoCliente(false);
         setNovoCliente({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
       }
@@ -137,111 +197,77 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     }
   };
 
-  // NOVO: Função para deduzir estoque
-  // NOVA: Função que chama a Edge Function
-  const deduzirestoqueLojas = async (vendaId: number, itensVenda: any[]) => {
-    try {
-      const lojaId = parseInt(form.loja_id);
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/deduzir-estoque`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            vendaId,
-            lojaId,
-            itens: itensVenda.map((item) => ({
-              produto_id: item.produto_id,
-              quantidade: item.quantidade,
-            })),
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao deduzir estoque");
-      }
-
-      const data = await response.json();
-      console.log("✅ Estoque detraído com sucesso:", data);
-      return data;
-    } catch (err: any) {
-      console.error("❌ Erro ao deduzir estoque:", err);
-      throw new Error(`Erro ao atualizar estoque: ${err.message}`);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // NOVO: Validação de loja
-    if (!form.loja_id) {
-      toast.error('Selecione uma loja');
-      return;
-    }
-
-    if (itens.length === 0) {
-      toast.error('Adicione pelo menos um item à venda');
-      return;
-    }
-
+    if (itens.length === 0) { toast.error('Adicione pelo menos um item à venda'); return; }
+    if (!form.loja_id) { toast.error('Selecione a loja'); return; }
     setLoading(true);
+
     try {
-      const total = calcularTotal();
+      const total = calcularTotalVendas();
+      const lucro = calcularLucro();
+      const lojaId = parseInt(form.loja_id);
+
       const vendaData = {
         ...form,
-        loja_id: parseInt(form.loja_id), // NOVO
+        loja_id: lojaId,
         cliente_id: form.cliente_id ? parseInt(form.cliente_id) : null,
         vendedor_id: form.vendedor_id ? parseInt(form.vendedor_id) : null,
         valor_total: total,
-        lucro_final: form.lucro_final || total * 0.3,
-        lucro_parcial: form.lucro_parcial || total * 0.3,
+        lucro_final: lucro,
+        lucro_parcial: lucro,
       };
 
       if (venda) {
+        const lojaIdAntiga = (venda as any).loja_id;
+        if (lojaIdAntiga) await reverterEstoque(lojaIdAntiga, venda.id);
+
         const { error } = await supabase.from('vendas').update(vendaData).eq('id', venda.id);
         if (error) throw error;
+
         await supabase.from('vendas_itens').delete().eq('venda_id', venda.id);
-        await supabase.from('vendas_itens').insert(itens.map(i => ({ venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, subtotal: i.subtotal })));
+        await supabase.from('vendas_itens').insert(itens.map(i => ({
+          venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade,
+          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, subtotal: i.subtotal
+        })));
 
-        // NOVO: Deduzir estoque ao atualizar
-        await deduzirestoqueLojas(venda.id, itens);
+        await deduzirEstoque(lojaId, venda.id);
 
-        // Atualiza financeiro
         await supabase.from('contas_financeiro').update({
           valor: total,
           descricao: `Venda #${form.codigo || venda.id} - ${clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente'}`,
         }).eq('referencia_id', venda.id).eq('categoria', 'Venda');
+
         toast.success('Venda atualizada!');
       } else {
         const { data, error } = await supabase.from('vendas').insert([vendaData]).select();
         if (error) throw error;
+
         if (data) {
-          await supabase.from('vendas_itens').insert(itens.map(i => ({ venda_id: data[0].id, produto_id: i.produto_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, subtotal: i.subtotal })));
+          const vendaId = data[0].id;
 
-          // NOVO: Deduzir estoque ao criar nova venda
-          await deduzirestoqueLojas(data[0].id, itens);
+          await supabase.from('vendas_itens').insert(itens.map(i => ({
+            venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, subtotal: i.subtotal
+          })));
 
-          // Cria registro financeiro automaticamente
+          await deduzirEstoque(lojaId, vendaId);
+
           const clienteNome = clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente';
           await supabase.from('contas_financeiro').insert([{
             tipo: 'Receber',
-            descricao: `Venda #${form.codigo || data[0].id} - ${clienteNome}`,
+            descricao: `Venda #${form.codigo || vendaId} - ${clienteNome}`,
             valor: total,
             data_vencimento: form.data_venda,
             pago: form.situacao === 'Finalizada',
             data_pagamento: form.situacao === 'Finalizada' ? form.data_venda : null,
             categoria: 'Venda',
-            referencia_id: data[0].id,
+            referencia_id: vendaId,
           }]);
         }
         toast.success('Venda registrada!');
       }
+
       onSaved();
       onClose();
     } catch (err: any) {
@@ -254,25 +280,17 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={venda ? 'Editar Venda' : 'Nova Venda'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* NOVO: Campo de Loja - DESTAQUE */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
-          <Select
-            label="🏪 Loja (Obrigatório)"
-            value={form.loja_id}
-            onChange={handleChange}
-            name="loja_id"
-            options={lojas.map(l => ({ value: l.id, label: l.nome }))}
-            placeholder="Selecione a loja"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input label="Código" value={form.codigo} onChange={handleChange} name="codigo" placeholder="Código da venda" />
-          <div>
+          <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
+            options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
+          <div className="md:col-span-2">
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <SearchSelect label="Cliente" value={form.cliente_id} onChange={(val) => setForm(prev => ({ ...prev, cliente_id: String(val) }))}
-                  options={clientes.map(c => ({ value: c.id, label: c.nome }))} placeholder="Digite o nome do cliente..." />
+                <SearchSelect label="Cliente" value={form.cliente_id}
+                  onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val }))}
+                  options={clientes.map(c => ({ value: c.id, label: c.nome }))}
+                  placeholder="Digite o nome do cliente..." />
               </div>
               <button type="button" onClick={() => setShowNovoCliente(true)}
                 className="h-[42px] px-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-1 text-sm whitespace-nowrap">
@@ -281,12 +299,23 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Select label="Vendedor" value={form.vendedor_id} onChange={handleChange} name="vendedor_id"
             options={vendedores.map(v => ({ value: v.id, label: v.nome }))} placeholder="Selecione o vendedor" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input label="Data" type="date" value={form.data_venda} onChange={handleChange} name="data_venda" required />
-          <Select label="Situação" value={form.situacao} onChange={handleChange} name="situacao"
+<Input 
+  label="Data" 
+  type="text" 
+  value={form.data_venda.split('-').reverse().join('/')} 
+  onChange={(e) => {
+    const [dia, mes, ano] = e.target.value.split('/');
+    setForm(prev => ({ ...prev, data_venda: `${ano}-${mes}-${dia}` }));
+  }}
+  name="data_venda" 
+  placeholder="DD/MM/YYYY"
+  required 
+/>          <Select label="Situação" value={form.situacao} onChange={handleChange} name="situacao"
             options={[{ value: 'Finalizada', label: 'Finalizada' }, { value: 'Cancelada', label: 'Cancelada' }, { value: 'Em Aberto', label: 'Em Aberto' }]} />
           <Select label="Tipo Pagamento" value={form.tipo_pagamento} onChange={handleChange} name="tipo_pagamento"
             options={[{ value: 'À Vista', label: 'À Vista' }, { value: 'Parcelado', label: 'Parcelado' }, { value: 'Cartão', label: 'Cartão' }, { value: 'PIX', label: 'PIX' }]} />
@@ -296,14 +325,18 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
           <h3 className="font-semibold text-gray-700 mb-3">Itens da Venda</h3>
 
-          {/* Lista de itens */}
           {itens.length > 0 && (
             <div className="mb-4 space-y-2">
               {itens.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
                   <span className="flex-1 text-sm font-medium text-gray-700">{item.produto_nome || `Produto #${item.produto_id}`}</span>
                   <span className="text-sm text-gray-500">Qtd: {item.quantidade}</span>
-                  <span className="text-sm text-green-600 font-medium">{formatMoney(item.subtotal)}</span>
+                  <span className="text-sm text-gray-400 text-xs">Custo: {formatMoney(item.preco_custo)}</span>
+                  {item.garantia ? (
+                    <span className="text-sm text-red-600 font-medium">-R$ 100,00</span>
+                  ) : (
+                    <span className="text-sm text-green-600 font-medium">{formatMoney(item.subtotal)}</span>
+                  )}
                   <button type="button" onClick={() => removerItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
@@ -312,21 +345,34 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             </div>
           )}
 
-          {/* Adicionar item */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-            <SearchSelect label="" value={novoItem.produto_id} onChange={(val) => {
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
+            <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
-              setNovoItem({ ...novoItem, produto_id: String(val), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0 });
-            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))} placeholder="Digite o nome do produto..." />
-            <Input label="" type="number" value={novoItem.quantidade} onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseFloat(e.target.value) || 1 })} min={0.01} step="0.01" />
-            <Input label="" type="number" value={novoItem.preco_unitario} onChange={(e) => setNovoItem({ ...novoItem, preco_unitario: parseFloat(e.target.value) || 0 })} step="0.01" />
-            <Input label="" type="number" value={novoItem.preco_custo} onChange={(e) => setNovoItem({ ...novoItem, preco_custo: parseFloat(e.target.value) || 0 })} step="0.01" />
-            <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px]">+ Adicionar</Button>
+              setNovoItem({ ...novoItem, produto_id: val, preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0 });
+            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
+              placeholder="Digite o nome do produto..." />
+            <Input label="Quantidade" type="number" value={novoItem.quantidade}
+              onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseFloat(e.target.value) || 1 })} min={0.01} step="0.01" />
+            <Input label="Preço Unitário" type="number" value={novoItem.preco_unitario}
+              onChange={(e) => setNovoItem({ ...novoItem, preco_unitario: parseFloat(e.target.value) || 0 })} step="0.01" />
+            <Input label="Preço Custo" type="number" value={novoItem.preco_custo}
+              onChange={(e) => setNovoItem({ ...novoItem, preco_custo: parseFloat(e.target.value) || 0 })} step="0.01" />
+            <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px] mt-6">+ Adicionar</Button>
           </div>
 
-          {/* Total */}
-          <div className="text-right mt-3 pt-3 border-t border-gray-200">
-            <span className="text-lg font-bold text-gray-800">Total: {formatMoney(calcularTotal())}</span>
+          <div className="flex items-center gap-2 mb-3 bg-white p-3 rounded-lg border border-gray-200">
+            <input type="checkbox" checked={novoItem.garantia || false}
+              onChange={(e) => setNovoItem({ ...novoItem, garantia: e.target.checked })}
+              className="w-4 h-4 text-blue-600 rounded" />
+            <label className="text-sm text-gray-600">Garantia</label>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-3 border-t border-gray-200">
+            <span className="text-sm text-gray-600">Total Vendas: <span className="font-medium text-blue-600">{formatMoney(calcularTotalVendas())}</span></span>
+            {contarGarantias() > 0 && (
+              <span className="text-sm text-red-600">Garantia: -{formatMoney(contarGarantias() * 100)}</span>
+            )}
+            <span className="text-lg font-bold text-gray-800">Lucro Final: {formatMoney(calcularLucro())}</span>
           </div>
         </div>
 
@@ -338,7 +384,6 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         </div>
       </form>
 
-      {/* Modal rápido de Novo Cliente */}
       {showNovoCliente && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
@@ -373,9 +418,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             </div>
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
               <button type="button" onClick={() => setShowNovoCliente(false)}
-                className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition font-medium">
-                Cancelar
-              </button>
+                className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition font-medium">Cancelar</button>
               <button type="button" onClick={criarClienteRapido} disabled={loadingCliente}
                 className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium disabled:opacity-50 flex items-center gap-2">
                 {loadingCliente && <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
