@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
-import { formatMoney } from '@/components/FormElements';
+import Modal from '@/components/Modal';
+import { formatMoney, formatDate } from '@/components/FormElements';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, Cell,
@@ -91,6 +92,10 @@ export default function DashboardPage() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [pneusPorLoja, setPneusPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
+
+  const [lojaDetalhe, setLojaDetalhe] = useState<{ id: number; nome: string } | null>(null);
+  const [vendasDetalhe, setVendasDetalhe] = useState<any[]>([]);
+  const [loadingDetalhe, setLoadingDetalhe] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -190,6 +195,30 @@ export default function DashboardPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
 
     setEvolucao(arr);
+  };
+
+  const abrirDetalheLoja = async (loja: { id: number; nome: string }) => {
+    setLojaDetalhe(loja);
+    setLoadingDetalhe(true);
+    try {
+      const { inicio, fim } = getRangeData(periodo, dataRef);
+      const { data, error } = await supabase
+        .from('vendas')
+        .select('id, codigo, valor_total, lucro_final, data_venda, situacao, cliente:clientes(nome), itens:vendas_itens(quantidade, preco_unitario, produto:produtos(nome))')
+        .eq('loja_id', loja.id)
+        .gte('data_venda', formatDateInput(inicio))
+        .lte('data_venda', formatDateInput(fim))
+        .neq('situacao', 'Cancelada')
+        .order('data_venda', { ascending: false });
+
+      if (error) throw error;
+      setVendasDetalhe(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar detalhe da loja:', err);
+      setVendasDetalhe([]);
+    } finally {
+      setLoadingDetalhe(false);
+    }
   };
 
   // ---------- Agregações ----------
@@ -364,7 +393,8 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {resumoPorLoja.map((r, idx) => (
-                  <tr key={r.loja_id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={r.loja_id} onClick={() => abrirDetalheLoja({ id: r.loja_id, nome: r.nome })}
+                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
                     <td className="py-3 px-6 text-sm font-medium text-gray-800 flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: CORES_LOJAS[idx % CORES_LOJAS.length] }} />
                       {r.nome}
@@ -383,6 +413,38 @@ export default function DashboardPage() {
             </table>
           </div>
         </div>
+
+        <Modal isOpen={!!lojaDetalhe} onClose={() => setLojaDetalhe(null)} title={`Vendas — ${lojaDetalhe?.nome || ''}`} size="lg">
+          {loadingDetalhe ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            </div>
+          ) : vendasDetalhe.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Nenhuma venda no período</p>
+          ) : (
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {vendasDetalhe.map((v) => (
+                <div key={v.id} className="border border-gray-100 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-medium text-gray-800">#{v.codigo || v.id} — {v.cliente?.nome || 'Consumidor'}</p>
+                      <p className="text-xs text-gray-500">{formatDate(v.data_venda)}</p>
+                    </div>
+                    <p className="text-green-600 font-medium">{formatMoney(v.valor_total || 0)}</p>
+                  </div>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    {(v.itens || []).map((it: any, i: number) => (
+                      <li key={i} className="flex justify-between">
+                        <span>{it.quantidade}x {it.produto?.nome || 'Item'}</span>
+                        <span>{formatMoney(it.preco_unitario || 0)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
       </main>
     </div>
   );
