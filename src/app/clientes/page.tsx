@@ -17,6 +17,8 @@ export default function ClientesPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 14;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -55,6 +57,10 @@ export default function ClientesPage() {
     c.cpf_cnpj?.includes(search) || c.telefone?.includes(search) || c.celular?.includes(search)
   );
 
+  const totalPaginas = Math.max(1, Math.ceil(filtered.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const paginados = filtered.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
   if (loading) return <div className="flex min-h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
@@ -75,7 +81,7 @@ export default function ClientesPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <input type="text" placeholder="🔍 Buscar por nome, CPF ou telefone..." value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPagina(1); }}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
 
@@ -93,7 +99,7 @@ export default function ClientesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
+                {paginados.map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 text-sm font-medium text-gray-800">{c.nome}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.cpf_cnpj || '-'}</td>
@@ -116,10 +122,26 @@ export default function ClientesPage() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum cliente encontrado</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Nenhum cliente encontrado</td></tr>}
               </tbody>
             </table>
           </div>
+
+          {totalPaginas > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100">
+              <p className="text-sm text-gray-500">Página {paginaAtual} de {totalPaginas}</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={paginaAtual === 1}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                  Anterior
+                </button>
+                <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <FormCliente isOpen={showForm} onClose={() => { setShowForm(false); setEditingCliente(null); }}
