@@ -92,7 +92,9 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <circle cx="12" cy="12" r="9" strokeWidth={2} />
+              <circle cx="12" cy="12" r="3" strokeWidth={2} />
+              <path strokeLinecap="round" strokeWidth={2} d="M12 3v3M12 18v3M4.9 7.5l2.6 1.5M16.5 15l2.6 1.5M4.9 16.5l2.6-1.5M16.5 9l2.6-1.5" />
             </svg>
           </div>
           <span className="font-bold text-sm"><span className="text-gray-800">Barato</span> <span className="text-orange-500">Pneus</span></span>
@@ -116,7 +118,9 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                <circle cx="12" cy="12" r="3" strokeWidth={2} />
+                <path strokeLinecap="round" strokeWidth={2} d="M12 3v3M12 18v3M4.9 7.5l2.6 1.5M16.5 15l2.6 1.5M4.9 16.5l2.6-1.5M16.5 9l2.6-1.5" />
               </svg>
             </div>
             <div>
