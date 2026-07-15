@@ -12,7 +12,12 @@ export default function Home() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.push('/dashboard');
+        const { data: colaborador } = await supabase
+          .from('colaboradores')
+          .select('is_admin')
+          .eq('email', session.user.email)
+          .single();
+        router.push(colaborador?.is_admin ? '/dashboard' : '/vendas');
       } else {
         router.push('/login');
       }

@@ -15,7 +15,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -26,8 +26,14 @@ export default function LoginPage() {
       return;
     }
 
+    const { data: colaborador } = await supabase
+      .from('colaboradores')
+      .select('is_admin')
+      .eq('email', data.user?.email)
+      .single();
+
     toast.success('Login realizado com sucesso!');
-    router.push('/dashboard');
+    router.push(colaborador?.is_admin ? '/dashboard' : '/vendas');
   };
 
   return (
