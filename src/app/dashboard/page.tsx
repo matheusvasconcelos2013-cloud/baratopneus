@@ -343,7 +343,7 @@ export default function DashboardPage() {
           <KpiCard titulo="Vendas" valor={kpis.totalVendas.toString()} cor="text-gray-800" icone="🧾" />
           <KpiCard titulo="Ticket Médio" valor={formatMoney(kpis.ticketMedio)} cor="text-purple-600" icone="🎯" />
           <KpiCard titulo="Pneus Vendidos" valor={kpis.totalPneus.toString()} cor="text-orange-600" icone="🛞" />
-          <KpiCard titulo="Pneus em Garantia" valor={kpis.totalPneusGarantia.toString()} cor="text-red-600" icone="🛡️" />
+          <KpiCard titulo="Garantias" valor={kpis.totalPneusGarantia.toString()} cor="text-red-600" icone="🛡️" />
         </div>
 
         {/* Gráficos */}
@@ -403,7 +403,7 @@ export default function DashboardPage() {
                   <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Lucro</th>
                   <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Ticket Médio</th>
                   <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Pneus Vendidos</th>
-                  <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Pneus em Garantia</th>
+                  <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Garantias</th>
                 </tr>
               </thead>
               <tbody>

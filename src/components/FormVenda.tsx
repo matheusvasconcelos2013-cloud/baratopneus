@@ -237,7 +237,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         await supabase.from('vendas_itens').delete().eq('venda_id', venda.id);
         await supabase.from('vendas_itens').insert(itens.map(i => ({
           venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade,
-          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, subtotal: i.subtotal
+          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, subtotal: i.subtotal
         })));
 
         await deduzirEstoque(lojaId, venda.id);
@@ -257,7 +257,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           await supabase.from('vendas_itens').insert(itens.map(i => ({
             venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
-            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, subtotal: i.subtotal
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, subtotal: i.subtotal
           })));
 
           await deduzirEstoque(lojaId, vendaId);

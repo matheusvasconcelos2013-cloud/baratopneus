@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS vendas_itens (
   preco_unitario DECIMAL(10,2) DEFAULT 0,
   preco_custo DECIMAL(10,2) DEFAULT 0,
   desconto INTEGER DEFAULT 0,
+  garantia BOOLEAN DEFAULT FALSE,
   subtotal DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
