@@ -23,7 +23,7 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
   });
 
   const [itens, setItens] = useState<any[]>([]);
-  const [novoItem, setNovoItem] = useState({ produto_id: '', quantidade: 1, preco_custo: 0 });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_custo: number }>({ produto_id: '', quantidade: 1, preco_custo: 0 });
   const [lojas, setLojas] = useState<any[]>([]);
   const [fornecedores, setFornecedores] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
@@ -274,7 +274,14 @@ supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true
 setNovoItem({ ...novoItem, produto_id: String(val), preco_custo: prod?.preco_custo || 0 });            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome}` }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
-              onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseFloat(e.target.value) || 1 })} min={0.01} step="0.01" />
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === '') { setNovoItem({ ...novoItem, quantidade: '' }); return; }
+                const val = parseInt(raw, 10);
+                setNovoItem({ ...novoItem, quantidade: isNaN(val) ? '' : val });
+              }}
+              onBlur={() => { if (novoItem.quantidade === '') setNovoItem({ ...novoItem, quantidade: 1 }); }}
+              min={1} step="1" />
             <Input label="Preço Custo" type="number" value={novoItem.preco_custo}
               onChange={(e) => setNovoItem({ ...novoItem, preco_custo: parseFloat(e.target.value) || 0 })} step="0.01" placeholder="Preço de custo" />
             <div></div>
