@@ -1,0 +1,11 @@
+{
+  "name": "Barato Pneus - Sistema de Gestão",
+  "short_name": "Barato Pneus",
+  "start_url": "/vendas",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

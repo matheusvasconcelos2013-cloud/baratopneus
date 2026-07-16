@@ -1,16 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Notificacao,
   subscribeNotificacoes,
   marcarComoLida,
   marcarTodasComoLidas,
 } from '@/lib/notificacoesStore';
+import { pushSuportado, pushJaAtivo, ativarPushNotifications } from '@/lib/push';
 
-export default function NotificationBell() {
+interface NotificationBellProps {
+  userEmail?: string;
+}
+
+export default function NotificationBell({ userEmail }: NotificationBellProps) {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [open, setOpen] = useState(false);
+  const [pushAtivo, setPushAtivo] = useState(false);
+  const [ativandoPush, setAtivandoPush] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const naoLidas = notificacoes.filter(n => !n.lida).length;
@@ -18,6 +26,24 @@ export default function NotificationBell() {
   useEffect(() => {
     return subscribeNotificacoes(setNotificacoes);
   }, []);
+
+  useEffect(() => {
+    pushJaAtivo().then(setPushAtivo);
+  }, []);
+
+  const handleAtivarPush = async () => {
+    if (!userEmail) return;
+    setAtivandoPush(true);
+    try {
+      await ativarPushNotifications(userEmail);
+      setPushAtivo(true);
+      toast.success('Notificações no celular ativadas!');
+    } catch (err: any) {
+      toast.error(err.message || 'Não foi possível ativar as notificações.');
+    } finally {
+      setAtivandoPush(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -56,6 +82,16 @@ export default function NotificationBell() {
               </button>
             )}
           </div>
+
+          {pushSuportado() && !pushAtivo && (
+            <button
+              onClick={handleAtivarPush}
+              disabled={ativandoPush}
+              className="w-full text-left px-4 py-2.5 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border-b border-gray-100 disabled:opacity-50"
+            >
+              📲 {ativandoPush ? 'Ativando...' : 'Ativar notificações no celular'}
+            </button>
+          )}
 
           {notificacoes.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">Nenhuma notificação</p>

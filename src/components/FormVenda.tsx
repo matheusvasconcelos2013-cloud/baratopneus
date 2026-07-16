@@ -290,13 +290,19 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           const lojaNome = lojas.find(l => l.id === lojaId)?.nome || 'Loja';
           const vendedorNome = vendedores.find(v => v.id === parseInt(form.vendedor_id))?.nome;
+          const mensagemNotificacao = `${lojaNome}: ${clienteNome} - ${formatMoney(total)}${vendedorNome ? ` (vendedor: ${vendedorNome})` : ''}`;
           await supabase.from('notificacoes').insert([{
             tipo: 'venda',
             titulo: 'Nova venda registrada',
-            mensagem: `${lojaNome}: ${clienteNome} - ${formatMoney(total)}${vendedorNome ? ` (vendedor: ${vendedorNome})` : ''}`,
+            mensagem: mensagemNotificacao,
             loja_id: lojaId,
             referencia_id: vendaId,
           }]);
+
+          // Envia notificação push (celular); falha aqui não deve impedir a venda
+          supabase.functions.invoke('send-push', {
+            body: { titulo: 'Nova venda registrada', mensagem: mensagemNotificacao, url: '/vendas' },
+          }).catch(() => {});
         }
         toast.success('Venda registrada!');
       }

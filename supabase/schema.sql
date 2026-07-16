@@ -255,6 +255,24 @@ CREATE POLICY "Usuários autenticados podem atualizar notificações"
 
 ALTER PUBLICATION supabase_realtime ADD TABLE notificacoes;
 
+-- 17. TABELA DE INSCRIÇÕES DE PUSH (notificações no celular)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id SERIAL PRIMARY KEY,
+  colaborador_id INTEGER REFERENCES colaboradores(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuários autenticados podem gerenciar suas inscrições push"
+  ON push_subscriptions FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
 -- ============================================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================================
