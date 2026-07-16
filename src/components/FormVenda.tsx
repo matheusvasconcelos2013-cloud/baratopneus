@@ -247,18 +247,21 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         const vendedorNome = vendedores.find(v => v.id === parseInt(form.vendedor_id))?.nome;
         const mensagemNotificacao = `${lojaNome}: ${clienteNome} - ${formatMoney(total)}${vendedorNome ? ` (vendedor: ${vendedorNome})` : ''}`;
 
-        await supabase.from('notificacoes').insert([{
+        // Falhas aqui não devem impedir a venda, mas não podem mais passar em silêncio
+        const { error: erroNotificacao } = await supabase.from('notificacoes').insert([{
           tipo: 'venda',
           titulo: 'Nova venda registrada',
           mensagem: mensagemNotificacao,
           loja_id: lojaId,
           referencia_id: vendaId,
         }]);
+        if (erroNotificacao) console.error('Falha ao criar notificação da venda:', erroNotificacao);
 
-        // Envia notificação push (celular); falha aqui não deve impedir a venda
         supabase.functions.invoke('send-push', {
           body: { titulo: 'Nova venda registrada', mensagem: mensagemNotificacao, url: '/vendas' },
-        }).catch(() => {});
+        }).then(({ error }) => {
+          if (error) console.error('Falha ao enviar push da venda:', error);
+        }).catch((err) => console.error('Falha ao enviar push da venda:', err));
       };
 
       if (venda) {
