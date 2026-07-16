@@ -64,7 +64,7 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
       .maybeSingle();
  
     if (data) {
-      setForm(prev => ({ ...prev, quantidade_estoque: data.quantidade }));
+      setForm(prev => ({ ...prev, quantidade_estoque: Math.round(data.quantidade) }));
     } else {
       setForm(prev => ({ ...prev, quantidade_estoque: 0 }));
     }
@@ -78,7 +78,12 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: ['preco_venda', 'preco_custo', 'quantidade_estoque', 'estoque_minimo'].includes(name) ? parseFloat(value) || 0 : value }));
+    setForm(prev => ({
+      ...prev,
+      [name]: name === 'quantidade_estoque'
+        ? parseInt(value, 10) || 0
+        : ['preco_venda', 'preco_custo', 'estoque_minimo'].includes(name) ? parseFloat(value) || 0 : value
+    }));
   };
  
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,8 +173,8 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
   type="number" 
   value={form.quantidade_estoque} 
   onChange={handleChange} 
-  name="quantidade_estoque" 
-  step="0.01" 
+  name="quantidade_estoque"
+  step="1"
   min={0}
   placeholder="Digite a quantidade"
 />
