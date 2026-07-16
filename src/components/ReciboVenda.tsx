@@ -84,10 +84,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
             </div>
             <div className="text-right">
-              <div className="bg-blue-600 text-white px-6 py-3 rounded-xl">
-                <p className="text-xs uppercase tracking-wider opacity-80">Venda</p>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Emissão: {data} às {hora}</p>
+              <p className="text-xs text-gray-500">Emissão: {data} às {hora}</p>
             </div>
           </div>
         </div>
