@@ -17,11 +17,6 @@ interface VendaRow {
   loja: { nome: string; telefone?: string; endereco?: string; cidade?: string; estado?: string } | null;
 }
 
-function hojeLocalStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function VendasPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -74,11 +69,6 @@ export default function VendasPage() {
         setIsAdmin(isUserAdmin);
         setMeuColaboradorId(colaboradorId);
 
-        // Vendedores só podem ver as próprias vendas do dia; força o período
-        if (!isUserAdmin) {
-          setPeriodo('hoje');
-        }
-
         await carregarVendas(isUserAdmin, colaboradorId);
       } catch (err) {
         console.error('Erro na inicialização:', err);
@@ -90,32 +80,24 @@ export default function VendasPage() {
   }, [router]);
 
   const carregarVendas = async (adminFlag: boolean = isAdmin, colaboradorId: number | null = meuColaboradorId) => {
-  // Vendedores (não-admin) só enxergam as próprias vendas do dia
-  if (!adminFlag) {
-    const { data, error } = await supabase
-      .from('vendas')
-      .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
-      .eq('data_venda', hojeLocalStr())
-      .eq('vendedor_id', colaboradorId ?? -1)
-      .order('data_venda', { ascending: false });
-
-    if (error) console.error('Erro ao carregar vendas:', error);
-    setVendas((data || []) as any);
-    setLoading(false);
-    return;
-  }
-
   let todasVendas: any[] = [];
   let pagina = 0;
   const tamanhoPagina = 1000;
   let temMais = true;
 
   while (temMais) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('vendas')
       .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
       .order('data_venda', { ascending: false })
       .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
+
+    // Vendedores (não-admin) só enxergam as vendas em que constam como vendedor
+    if (!adminFlag) {
+      query = query.eq('vendedor_id', colaboradorId ?? -1);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Erro ao carregar vendas:', error);
@@ -274,24 +256,18 @@ export default function VendasPage() {
           </div>
         </div>
 
-        {isAdmin ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-2">
-            {[
-              { k: 'hoje', l: 'Hoje' },
-              { k: 'semana', l: '7 dias' },
-              { k: 'mes', l: '30 dias' },
-              { k: 'todos', l: 'Todas' },
-            ].map(i => (
-              <button key={i.k} onClick={() => setPeriodo(i.k)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-            <span className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white">Hoje</span>
-            <span className="text-xs text-gray-400 ml-3">Você vê apenas as suas próprias vendas do dia</span>
-          </div>
-        )}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-2">
+          {[
+            { k: 'hoje', l: 'Hoje' },
+            { k: 'semana', l: '7 dias' },
+            { k: 'mes', l: '30 dias' },
+            ...(isAdmin ? [{ k: 'todos', l: 'Todas' }] : []),
+          ].map(i => (
+            <button key={i.k} onClick={() => setPeriodo(i.k)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
+          ))}
+          {!isAdmin && <span className="text-xs text-gray-400 self-center ml-2">Você vê apenas as vendas em seu nome</span>}
+        </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
