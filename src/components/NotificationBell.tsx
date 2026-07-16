@@ -23,7 +23,7 @@ export default function NotificationBell() {
     carregar();
 
     const channel = supabase
-      .channel('notificacoes-vendas')
+      .channel(`notificacoes-vendas-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notificacoes' },
