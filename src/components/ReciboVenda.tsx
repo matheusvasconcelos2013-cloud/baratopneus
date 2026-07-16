@@ -23,8 +23,12 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
 
   const garantia = 'Garantia de 3 meses contra defeitos de fabricação.';
 
-  const data = new Date().toLocaleDateString('pt-BR');
-  const hora = new Date().toLocaleTimeString('pt-BR');
+  const dataReferencia = venda.created_at ? new Date(venda.created_at) : (venda.data_venda ? new Date(`${venda.data_venda}T00:00:00`) : new Date());
+  const data = dataReferencia.toLocaleDateString('pt-BR');
+  const hora = venda.created_at ? dataReferencia.toLocaleTimeString('pt-BR') : '--:--:--';
+  const agora = new Date();
+  const dataImpressao = agora.toLocaleDateString('pt-BR');
+  const horaImpressao = agora.toLocaleTimeString('pt-BR');
 
   const enderecoLoja = loja?.endereco
     ? `${loja.endereco}${loja.cidade ? ' | ' + loja.cidade : ''}${loja.estado ? ' - ' + loja.estado : ''}`
@@ -84,7 +88,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500">Emissão: {data} às {hora}</p>
+              <p className="text-xs text-gray-500">Venda realizada em: {data}{venda.created_at ? ` às ${hora}` : ''}</p>
             </div>
           </div>
         </div>
@@ -263,7 +267,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         <div className="border-t-2 border-gray-300 pt-4 text-center">
           <p className="text-gray-500 text-sm">📧 baratopneus@email.com | 📞 (11) 9.7625-1152</p>
           <p className="text-gray-400 text-xs mt-1">
-            Documento emitido em {data} às {hora} - Barato Pneus
+            Documento emitido em {dataImpressao} às {horaImpressao} - Barato Pneus
           </p>
           <div className="flex justify-center gap-8 mt-4 text-xs text-gray-400">
             <span>👤 {cliente?.nome || 'Consumidor'}</span>
