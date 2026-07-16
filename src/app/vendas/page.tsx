@@ -109,11 +109,59 @@ export default function VendasPage() {
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
   const excluir = async (id: number) => {
-    if (!confirm('Excluir esta venda permanentemente?')) return;
-    await supabase.from('vendas_itens').delete().eq('venda_id', id);
-    const { error } = await supabase.from('vendas').delete().eq('id', id);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Venda excluída'); carregarVendas();
+    if (!confirm('Excluir esta venda permanentemente? O estoque será revertido!')) return;
+    try {
+      const vendaRes = await supabase.from('vendas').select('id, loja_id').eq('id', id).single();
+      const itensRes = await supabase.from('vendas_itens').select('*').eq('venda_id', id);
+
+      if (!vendaRes.data || !itensRes.data) {
+        toast.error('Venda não encontrada');
+        return;
+      }
+
+      const lojaId = vendaRes.data.loja_id;
+      const itens = itensRes.data;
+
+      // Devolve o estoque de cada item ao que era antes da venda
+      for (const item of itens) {
+        if (!item.produto_id) continue;
+        const estoqueAtual = await supabase
+          .from('estoque_lojas')
+          .select('id, quantidade')
+          .eq('produto_id', item.produto_id)
+          .eq('loja_id', lojaId)
+          .maybeSingle();
+
+        if (estoqueAtual.data) {
+          await supabase
+            .from('estoque_lojas')
+            .update({ quantidade: estoqueAtual.data.quantidade + item.quantidade })
+            .eq('id', estoqueAtual.data.id);
+        } else {
+          await supabase.from('estoque_lojas').insert([{
+            produto_id: item.produto_id,
+            loja_id: lojaId,
+            quantidade: item.quantidade,
+          }]);
+        }
+      }
+
+      // Remove o histórico de movimentação de estoque gerado por essa venda
+      await supabase.from('movimentacao_estoque').delete().eq('referencia_id', id).in('motivo', ['Venda', 'Garantia']);
+
+      // Remove o lançamento financeiro gerado por essa venda
+      await supabase.from('contas_financeiro').delete().eq('referencia_id', id).eq('categoria', 'Venda');
+
+      // Remove os itens e a venda
+      await supabase.from('vendas_itens').delete().eq('venda_id', id);
+      const { error } = await supabase.from('vendas').delete().eq('id', id);
+      if (error) { toast.error(error.message); return; }
+
+      toast.success('Venda excluída e estoque revertido!');
+      carregarVendas();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const imprimirRecibo = async (venda: VendaRow) => {
