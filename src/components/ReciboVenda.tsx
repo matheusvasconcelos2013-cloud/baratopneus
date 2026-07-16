@@ -1,6 +1,7 @@
 'use client';
 
 import { formatMoney, formatDate } from './FormElements';
+import { getLocalDateString } from '@/lib/dateUtils';
 
 interface ReciboVendaProps {
   venda: any;

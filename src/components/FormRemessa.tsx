@@ -6,6 +6,7 @@ import Modal from './Modal';
 import SearchSelect from './SearchSelect';
 import { Input, Select, TextArea, Button, formatMoney } from './FormElements';
 import toast from 'react-hot-toast';
+import { getLocalDateString, formatDateTimeForDB } from '@/lib/dateUtils';
 
 interface FormRemessaProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
   const [form, setForm] = useState({
     loja_id: '',
     fornecedor_id: '',
-    data_entrada: new Date().toISOString().split('T')[0],
+    data_entrada: getLocalDateString(),
     observacao: '',
   });
 
@@ -44,7 +45,7 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
       setForm({
         loja_id: '',
         fornecedor_id: '',
-        data_entrada: new Date().toISOString().split('T')[0],
+        data_entrada: getLocalDateString(),
         observacao: '',
       });
       setItens([]);
@@ -215,7 +216,7 @@ supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true
       // Atualiza quantidade existente
       await supabase
         .from('estoque_lojas')
-        .update({ quantidade: estoqueAtual.quantidade + quantidade, updated_at: new Date().toISOString() })
+        .update({ quantidade: estoqueAtual.quantidade + quantidade, updated_at: formatDateTimeForDB() })
         .eq('id', estoqueAtual.id);
     } else {
       // Cria novo registro

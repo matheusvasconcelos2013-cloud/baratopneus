@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Modal from './Modal';
 import { Input, Select, TextArea, Button, formatMoney } from './FormElements';
 import toast from 'react-hot-toast';
+import { getLocalDateString, formatDateTimeForDB } from '@/lib/dateUtils';
 import { Produto, Colaborador, Cliente, Venda, VendaItem } from '@/types';
 
 interface FormVendaProps {
@@ -20,7 +21,7 @@ Cliente foi orientado que é necessário fazer a correção da cambagem do veicu
 export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVendaProps) {
   const [form, setForm] = useState({
     codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
-    lucro_final: 0, data_venda: new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-'),
+    lucro_final: 0, data_venda: getLocalDateString(),
     situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: ''
   });
   const [itens, setItens] = useState<any[]>([]);
@@ -53,7 +54,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       });
       carregarItens(venda.id);
     } else {
-      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-'), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '' });
+      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '' });
       setItens([]);
     }
   }, [venda, isOpen]);
@@ -137,7 +138,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         const novaQtd = Math.max(0, estoqueAtual.quantidade - item.quantidade);
         await supabase
           .from('estoque_lojas')
-          .update({ quantidade: novaQtd, updated_at: new Date().toISOString() })
+          .update({ quantidade: novaQtd, updated_at: formatDateTimeForDB() })
           .eq('id', estoqueAtual.id);
       } else {
         await supabase.from('estoque_lojas').insert([{

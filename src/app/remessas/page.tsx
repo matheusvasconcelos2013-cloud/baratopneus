@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import FormRemessa from '@/components/FormRemessa';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
 import toast from 'react-hot-toast';
+import { formatDateTimeForDB } from '@/lib/dateUtils';
 
 interface RemessaRow {
   id: number;
@@ -111,7 +112,7 @@ export default function RemessasPage() {
           const novaQtd = Math.max(0, estoqueAtual.data.quantidade - item.quantidade);
           await supabase
             .from('estoque_lojas')
-            .update({ quantidade: novaQtd, updated_at: new Date().toISOString() })
+            .update({ quantidade: novaQtd, updated_at: formatDateTimeForDB() })
             .eq('id', estoqueAtual.data.id);
 
           // Remove da movimentacao_estoque

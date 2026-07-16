@@ -4,6 +4,7 @@ import Modal from './Modal';
 import { Input, Select, TextArea, Button } from './FormElements';
 import { Produto } from '@/types';
 import toast from 'react-hot-toast';
+import { formatDateTimeForDB } from '@/lib/dateUtils';
  
 interface FormProdutoProps {
   isOpen: boolean;
@@ -104,7 +105,7 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
             // Atualiza quantidade
             await supabase
               .from('estoque_lojas')
-              .update({ quantidade: form.quantidade_estoque, updated_at: new Date().toISOString() })
+              .update({ quantidade: form.quantidade_estoque, updated_at: formatDateTimeForDB() })
               .eq('id', estoqueAtual.id);
           } else {
             // Cria novo registro

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
+import { getLocalDateString } from '@/lib/dateUtils';
 
 export default function RelatoriosPage() {
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function RelatoriosPage() {
     setPeriodo(p);
 
     const dias = p === 'hoje' ? 1 : p === 'semana' ? 7 : p === 'mes' ? 30 : 365;
-    const dataInicio = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const dataInicio = getLocalDateString(new Date(Date.now() - dias * 24 * 60 * 60 * 1000));
 
     const { data: vendas } = await supabase
       .from('vendas')

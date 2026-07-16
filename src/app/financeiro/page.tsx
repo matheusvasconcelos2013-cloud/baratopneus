@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import Modal from '@/components/Modal';
 import { Input, Select, TextArea, Button, formatMoney, formatDate } from '@/components/FormElements';
 import toast from 'react-hot-toast';
+import { getLocalDateString } from '@/lib/dateUtils';
 
 export default function FinanceiroPage() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function FinanceiroPage() {
   };
 
   const togglePago = async (id: number, pago: boolean) => {
-    const { error } = await supabase.from('contas_financeiro').update({ pago: !pago, data_pagamento: !pago ? new Date().toISOString().split('T')[0] : null }).eq('id', id);
+    const { error } = await supabase.from('contas_financeiro').update({ pago: !pago, data_pagamento: !pago ? getLocalDateString() : null }).eq('id', id);
     if (error) { toast.error(error.message); return; }
     carregar();
   };
