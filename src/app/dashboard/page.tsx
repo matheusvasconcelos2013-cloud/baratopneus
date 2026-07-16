@@ -19,6 +19,7 @@ interface Venda {
   lucro_final: number;
   data_venda: string;
   situacao: string;
+  como_conheceu?: string;
 }
 
 interface LojaResumo {
@@ -94,6 +95,7 @@ export default function DashboardPage() {
   const [pneusPorLoja, setPneusPorLoja] = useState<Record<number, number>>({});
   const [pneusGarantiaPorLoja, setPneusGarantiaPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
+  const [canaisAquisicao, setCanaisAquisicao] = useState<{ canal: string; total: number }[]>([]);
 
   const [lojaDetalhe, setLojaDetalhe] = useState<{ id: number; nome: string } | null>(null);
   const [vendasDetalhe, setVendasDetalhe] = useState<any[]>([]);
@@ -131,7 +133,7 @@ export default function DashboardPage() {
       // 1) Vendas do período (exclui canceladas)
       let query = supabase
         .from('vendas')
-        .select('id, loja_id, valor_total, lucro_final, data_venda, situacao')
+        .select('id, loja_id, valor_total, lucro_final, data_venda, situacao, como_conheceu')
         .gte('data_venda', formatDateInput(inicio))
         .lte('data_venda', formatDateInput(fim))
         .neq('situacao', 'Cancelada');
@@ -141,6 +143,17 @@ export default function DashboardPage() {
       const { data: vendasData, error: vendasErr } = await query;
       if (vendasErr) throw vendasErr;
       setVendas(vendasData || []);
+
+      const canaisTmp: Record<string, number> = {};
+      (vendasData || []).forEach((v: any) => {
+        const canal = v.como_conheceu || 'Não informado';
+        canaisTmp[canal] = (canaisTmp[canal] || 0) + 1;
+      });
+      setCanaisAquisicao(
+        Object.entries(canaisTmp)
+          .map(([canal, total]) => ({ canal, total }))
+          .sort((a, b) => b.total - a.total)
+      );
 
       // 2) Quantidade de pneus vendidos e em garantia (produtos tipo = 'Produto') nas vendas do período
       const vendaIds = (vendasData || []).map(v => v.id);
@@ -386,6 +399,28 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             )}
           </div>
+        </div>
+
+        {/* Como conheceu a loja */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Como os Clientes Conheceram a Loja</h2>
+          {canaisAquisicao.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={canaisAquisicao} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="canal" tick={{ fontSize: 12 }} width={110} />
+                <Tooltip formatter={(v) => `${v} vendas`} />
+                <Bar dataKey="total" radius={[0, 6, 6, 0]}>
+                  {canaisAquisicao.map((_, idx) => (
+                    <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Tabela comparativa entre lojas */}

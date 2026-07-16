@@ -77,6 +77,7 @@ export interface Venda {
   situacao?: string;
   tipo_pagamento?: string;
   observacao?: string;
+  como_conheceu?: string;
   created_at: string;
   // Relacionamentos
   cliente?: Cliente;

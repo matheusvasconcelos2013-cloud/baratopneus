@@ -22,7 +22,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [form, setForm] = useState({
     codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
     lucro_final: 0, data_venda: getLocalDateString(),
-    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: ''
+    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: ''
   });
   const [itens, setItens] = useState<any[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -50,11 +50,12 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         data_venda: venda.data_venda?.split('T')[0] || new Date().toISOString().split('T')[0],
         situacao: venda.situacao || 'Finalizada',
         tipo_pagamento: venda.tipo_pagamento || 'À Vista',
-        observacao: venda.observacao || ''
+        observacao: venda.observacao || '',
+        como_conheceu: (venda as any).como_conheceu || ''
       });
       carregarItens(venda.id);
     } else {
-      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '' });
+      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: '' });
       setItens([]);
     }
   }, [venda, isOpen]);
@@ -301,7 +302,9 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     <Modal isOpen={isOpen} onClose={onClose} title={venda ? 'Editar Venda' : 'Nova Venda'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Input label="Código" value={form.codigo} onChange={handleChange} name="codigo" placeholder="Código da venda" />
+          <Select label="Como conheceu a loja" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
+            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }]}
+            placeholder="Selecione" />
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
             options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
           <div className="md:col-span-2">
