@@ -136,7 +136,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {recebeNotificacoes && <NotificationBell userEmail={user?.email} />}
+            {recebeNotificacoes && <NotificationBell userEmail={user?.email} align="left" />}
             <button onClick={() => setMobileOpen(false)} className="md:hidden p-1.5 text-gray-400 hover:text-gray-700 rounded-lg" title="Fechar menu">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

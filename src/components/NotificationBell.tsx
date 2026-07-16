@@ -14,9 +14,10 @@ import { pushSuportado, pushJaAtivo, ativarPushNotifications } from '@/lib/push'
 
 interface NotificationBellProps {
   userEmail?: string;
+  align?: 'left' | 'right';
 }
 
-export default function NotificationBell({ userEmail }: NotificationBellProps) {
+export default function NotificationBell({ userEmail, align = 'right' }: NotificationBellProps) {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [open, setOpen] = useState(false);
   const [pushAtivo, setPushAtivo] = useState(false);
@@ -75,7 +76,7 @@ export default function NotificationBell({ userEmail }: NotificationBellProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[90vw] max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-[60]">
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full mt-2 w-72 sm:w-80 max-w-[90vw] max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-[60]`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <span className="font-semibold text-sm text-gray-800">Notificações</span>
             <div className="flex items-center gap-3">
