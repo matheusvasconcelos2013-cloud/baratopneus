@@ -320,6 +320,11 @@ export default function DashboardPage() {
 
         {/* Filtros */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap justify-center sm:justify-start gap-3 items-center">
+          <button onClick={() => setDataRef(new Date())}
+            className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
+            Hoje
+          </button>
+
           {[{ k: 'dia', l: 'Dia' }, { k: 'mes', l: 'Mês' }, { k: 'ano', l: 'Ano' }].map(i => (
             <button key={i.k} onClick={() => setPeriodo(i.k as Periodo)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -334,11 +339,6 @@ export default function DashboardPage() {
             <button onClick={() => navegarPeriodo(1)}
               className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">▶</button>
           </div>
-
-          <button onClick={() => setDataRef(new Date())}
-            className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
-            Hoje
-          </button>
 
           <select value={lojaAtiva} onChange={(e) => setLojaAtiva(e.target.value)}
             className="sm:ml-auto px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
