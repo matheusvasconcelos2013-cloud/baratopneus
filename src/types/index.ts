@@ -93,6 +93,7 @@ export interface VendaItem {
   preco_custo: number;
   desconto?: number;
   garantia?: boolean;
+  lado?: string;
   subtotal: number;
 }
 

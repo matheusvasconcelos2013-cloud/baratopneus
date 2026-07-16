@@ -30,7 +30,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean; lado: string }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '' });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -104,9 +104,12 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     return itens.filter(item => item.garantia).reduce((acc, item) => acc + item.quantidade, 0);
   };
 
+  const ehAlinhamento = (nome?: string) => (nome || '').toLowerCase().includes('alinhamento');
+
   const adicionarItem = () => {
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
+    if (ehAlinhamento(prod?.nome) && !novoItem.lado) { toast.error('Selecione o lado do alinhamento'); return; }
     const quantidade = Number(novoItem.quantidade) || 1;
     const precoUnitario = novoItem.preco_unitario || prod?.preco_venda || 0;
     const desconto = novoItem.desconto || 0;
@@ -118,9 +121,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       desconto,
       subtotal: novoItem.garantia ? 0 : Math.max(0, quantidade * precoUnitario - desconto),
       produto_nome: prod?.nome,
-      garantia: novoItem.garantia
+      garantia: novoItem.garantia,
+      lado: ehAlinhamento(prod?.nome) ? novoItem.lado : undefined
     }]);
-    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false });
+    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '' });
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -257,7 +261,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           await supabase.from('vendas_itens').insert(itens.map(i => ({
             venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
-            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, subtotal: i.subtotal
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, subtotal: i.subtotal
           })));
 
           await deduzirEstoque(lojaId, vendaId);
@@ -339,7 +343,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             <div className="mb-4 space-y-2">
               {itens.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="flex-1 text-sm font-medium text-gray-700">{item.produto_nome || `Produto #${item.produto_id}`}</span>
+                  <span className="flex-1 text-sm font-medium text-gray-700">
+                    {item.produto_nome || `Produto #${item.produto_id}`}
+                    {item.lado && <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{item.lado}</span>}
+                  </span>
                   <span className="text-sm text-gray-500">Qtd: {item.quantidade}</span>
                   {item.desconto > 0 && (
                     <span className="text-sm text-red-500 text-xs">Desconto: -{formatMoney(item.desconto)}</span>
@@ -360,7 +367,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
-              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0 });
+              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0, lado: '' });
             }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
@@ -378,6 +385,15 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
               onChange={(e) => setNovoItem({ ...novoItem, desconto: parseInt(e.target.value, 10) || 0 })} step="1" min={0} />
             <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px] mt-6">+ Adicionar</Button>
           </div>
+
+          {ehAlinhamento(produtos.find(p => p.id === Number(novoItem.produto_id))?.nome) && (
+            <div className="mb-4">
+              <Select label="Lado do Alinhamento *" value={novoItem.lado}
+                onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value })}
+                options={[{ value: 'Esquerdo', label: 'Esquerdo' }, { value: 'Direito', label: 'Direito' }, { value: 'Esquerdo e Direito', label: 'Esquerdo e Direito' }]}
+                placeholder="Selecione o lado" />
+            </div>
+          )}
 
           <div className="flex items-center gap-2 mb-3 bg-white p-3 rounded-lg border border-gray-200">
             <input type="checkbox" checked={novoItem.garantia || false}
