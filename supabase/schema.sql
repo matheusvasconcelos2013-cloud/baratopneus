@@ -253,6 +253,11 @@ CREATE POLICY "Usuários autenticados podem atualizar notificações"
   TO authenticated
   USING (true);
 
+CREATE POLICY "Usuários autenticados podem excluir notificações"
+  ON notificacoes FOR DELETE
+  TO authenticated
+  USING (true);
+
 ALTER PUBLICATION supabase_realtime ADD TABLE notificacoes;
 
 -- 17. TABELA DE INSCRIÇÕES DE PUSH (notificações no celular)

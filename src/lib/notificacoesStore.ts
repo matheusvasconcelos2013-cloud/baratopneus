@@ -80,7 +80,11 @@ export async function marcarTodasComoLidas() {
 export async function excluirNotificacao(id: number) {
   notificacoes = notificacoes.filter((n) => n.id !== id);
   emitir();
-  await supabase.from('notificacoes').delete().eq('id', id);
+  const { error } = await supabase.from('notificacoes').delete().eq('id', id);
+  if (error) {
+    toast.error('Não foi possível excluir a notificação. Volte a atualizar a página.');
+    await carregarInicial();
+  }
 }
 
 export async function limparNotificacoes() {
@@ -88,5 +92,9 @@ export async function limparNotificacoes() {
   if (ids.length === 0) return;
   notificacoes = [];
   emitir();
-  await supabase.from('notificacoes').delete().in('id', ids);
+  const { error } = await supabase.from('notificacoes').delete().in('id', ids);
+  if (error) {
+    toast.error('Não foi possível limpar as notificações. Volte a atualizar a página.');
+    await carregarInicial();
+  }
 }
