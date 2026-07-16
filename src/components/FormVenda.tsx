@@ -105,14 +105,16 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   };
 
   const ehAlinhamento = (nome?: string) => (nome || '').toLowerCase().includes('alinhamento');
+  const ehCambagem = (nome?: string) => (nome || '').toLowerCase().includes('cambagem');
+  const precisaLado = (nome?: string) => ehAlinhamento(nome) || ehCambagem(nome);
 
   const adicionarItem = () => {
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
-    const alinhamento = ehAlinhamento(prod?.nome);
-    if (alinhamento && !novoItem.lado) { toast.error('Selecione o lado do alinhamento'); return; }
-    if (alinhamento && (novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_esquerdo) { toast.error('Informe a medida do lado esquerdo'); return; }
-    if (alinhamento && (novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_direito) { toast.error('Informe a medida do lado direito'); return; }
+    const comLado = precisaLado(prod?.nome);
+    if (comLado && !novoItem.lado) { toast.error('Selecione o lado'); return; }
+    if (comLado && (novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_esquerdo) { toast.error('Informe a medida do lado esquerdo'); return; }
+    if (comLado && (novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_direito) { toast.error('Informe a medida do lado direito'); return; }
     const quantidade = Number(novoItem.quantidade) || 1;
     const precoUnitario = novoItem.preco_unitario || prod?.preco_venda || 0;
     const desconto = novoItem.desconto || 0;
@@ -125,9 +127,9 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       subtotal: novoItem.garantia ? 0 : Math.max(0, quantidade * precoUnitario - desconto),
       produto_nome: prod?.nome,
       garantia: novoItem.garantia,
-      lado: alinhamento ? novoItem.lado : undefined,
-      medida_esquerdo: alinhamento && novoItem.medida_esquerdo ? parseFloat(novoItem.medida_esquerdo) : undefined,
-      medida_direito: alinhamento && novoItem.medida_direito ? parseFloat(novoItem.medida_direito) : undefined
+      lado: comLado ? novoItem.lado : undefined,
+      medida_esquerdo: comLado && novoItem.medida_esquerdo ? parseFloat(novoItem.medida_esquerdo) : undefined,
+      medida_direito: comLado && novoItem.medida_direito ? parseFloat(novoItem.medida_direito) : undefined
     }]);
     setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo: '', medida_direito: '' });
   };
@@ -397,9 +399,9 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px] mt-6">+ Adicionar</Button>
           </div>
 
-          {ehAlinhamento(produtos.find(p => p.id === Number(novoItem.produto_id))?.nome) && (
+          {precisaLado(produtos.find(p => p.id === Number(novoItem.produto_id))?.nome) && (
             <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
-              <Select label="Lado do Alinhamento *" value={novoItem.lado}
+              <Select label="Lado *" value={novoItem.lado}
                 onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value, medida_esquerdo: '', medida_direito: '' })}
                 options={[{ value: 'Esquerdo', label: 'Esquerdo' }, { value: 'Direito', label: 'Direito' }, { value: 'Esquerdo e Direito', label: 'Esquerdo e Direito' }]}
                 placeholder="Selecione o lado" />
