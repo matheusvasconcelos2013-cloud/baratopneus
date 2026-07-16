@@ -122,15 +122,18 @@ export default function VendasPage() {
         supabase.from('vendas_itens').select('*, produtos(nome)').eq('venda_id', venda.id),
         supabase.from('clientes').select('*').eq('nome', venda.cliente?.nome || '').maybeSingle(),
       ]);
-      
+
+      const itens = itensRes.data || [];
+      const temPneuRemold = itens.some((i: any) => (i.produtos?.nome || '').toLowerCase().includes('remold'));
+
       setReciboData({
         ...venda,
         cliente: clienteRes.data || { nome: venda.cliente?.nome || 'Consumidor' },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: venda.loja || { nome: 'Barato Pneus' },
-        observacao: venda.observacao || 'Garantia de 3 meses contra defeitos de fabricação.'
+        observacao: venda.observacao || (temPneuRemold ? 'Garantia de 3 meses contra defeitos de fabricação.' : '')
       });
-      setReciboItens(itensRes.data || []);
+      setReciboItens(itens);
       setShowRecibo(true);
     } catch (err) {
       setReciboData({
@@ -138,7 +141,7 @@ export default function VendasPage() {
         cliente: { nome: venda.cliente?.nome || 'Consumidor' },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: { nome: 'Barato Pneus' },
-        observacao: 'Garantia de 3 meses contra defeitos de fabricação.'
+        observacao: venda.observacao || ''
       });
       setReciboItens([]);
       setShowRecibo(true);
