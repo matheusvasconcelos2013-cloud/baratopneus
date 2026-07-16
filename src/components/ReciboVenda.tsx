@@ -86,7 +86,6 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
             <div className="text-right">
               <div className="bg-blue-600 text-white px-6 py-3 rounded-xl">
                 <p className="text-xs uppercase tracking-wider opacity-80">Venda</p>
-                <p className="text-2xl font-bold">#{venda.codigo || venda.id}</p>
               </div>
               <p className="text-xs text-gray-500 mt-2">Emissão: {data} às {hora}</p>
             </div>
@@ -270,7 +269,6 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
             Documento emitido em {data} às {hora} - Barato Pneus
           </p>
           <div className="flex justify-center gap-8 mt-4 text-xs text-gray-400">
-            <span>📄 Venda #{venda.codigo || venda.id}</span>
             <span>👤 {cliente?.nome || 'Consumidor'}</span>
           </div>
         </div>
