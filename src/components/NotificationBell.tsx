@@ -1,16 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import toast from 'react-hot-toast';
-
-interface Notificacao {
-  id: number;
-  titulo: string;
-  mensagem: string;
-  lida: boolean;
-  created_at: string;
-}
+import {
+  Notificacao,
+  subscribeNotificacoes,
+  marcarComoLida,
+  marcarTodasComoLidas,
+} from '@/lib/notificacoesStore';
 
 export default function NotificationBell() {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
@@ -20,24 +16,7 @@ export default function NotificationBell() {
   const naoLidas = notificacoes.filter(n => !n.lida).length;
 
   useEffect(() => {
-    carregar();
-
-    const channel = supabase
-      .channel(`notificacoes-vendas-${Math.random().toString(36).slice(2)}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notificacoes' },
-        (payload) => {
-          const nova = payload.new as Notificacao;
-          setNotificacoes((prev) => [nova, ...prev].slice(0, 30));
-          toast.success(`🔔 ${nova.titulo}: ${nova.mensagem}`, { duration: 6000 });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return subscribeNotificacoes(setNotificacoes);
   }, []);
 
   useEffect(() => {
@@ -49,27 +28,6 @@ export default function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const carregar = async () => {
-    const { data } = await supabase
-      .from('notificacoes')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(30);
-    if (data) setNotificacoes(data);
-  };
-
-  const marcarComoLida = async (id: number) => {
-    setNotificacoes((prev) => prev.map(n => (n.id === id ? { ...n, lida: true } : n)));
-    await supabase.from('notificacoes').update({ lida: true }).eq('id', id);
-  };
-
-  const marcarTodasComoLidas = async () => {
-    const idsNaoLidos = notificacoes.filter(n => !n.lida).map(n => n.id);
-    if (idsNaoLidos.length === 0) return;
-    setNotificacoes((prev) => prev.map(n => ({ ...n, lida: true })));
-    await supabase.from('notificacoes').update({ lida: true }).in('id', idsNaoLidos);
-  };
 
   return (
     <div className="relative" ref={containerRef}>
@@ -89,7 +47,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+        <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[90vw] max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-[60]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <span className="font-semibold text-sm text-gray-800">Notificações</span>
             {naoLidas > 0 && (
