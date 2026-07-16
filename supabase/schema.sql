@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS vendas_itens (
   quantidade DECIMAL(10,2) DEFAULT 1,
   preco_unitario DECIMAL(10,2) DEFAULT 0,
   preco_custo DECIMAL(10,2) DEFAULT 0,
+  desconto DECIMAL(10,2) DEFAULT 0,
   subtotal DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );

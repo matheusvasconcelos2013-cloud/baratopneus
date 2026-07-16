@@ -29,7 +29,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; garantia: boolean }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, garantia: false });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -91,7 +91,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const calcularLucro = () => {
     const lucroVendas = itens.reduce((acc, item) => {
       if (item.garantia) return acc;
-      return acc + ((item.preco_unitario - item.preco_custo) * item.quantidade);
+      return acc + ((item.preco_unitario - item.preco_custo) * item.quantidade) - (item.desconto || 0);
     }, 0);
 
     const custosGarantia = itens.filter(item => item.garantia).reduce((acc, item) => acc + (100 * item.quantidade), 0);
@@ -107,16 +107,19 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
     const quantidade = Number(novoItem.quantidade) || 1;
+    const precoUnitario = novoItem.preco_unitario || prod?.preco_venda || 0;
+    const desconto = novoItem.desconto || 0;
     setItens(prev => [...prev, {
       produto_id: Number(novoItem.produto_id),
       quantidade,
-      preco_unitario: novoItem.preco_unitario || prod?.preco_venda || 0,
+      preco_unitario: precoUnitario,
       preco_custo: novoItem.preco_custo || prod?.preco_custo || 0,
-      subtotal: novoItem.garantia ? 0 : (quantidade * (novoItem.preco_unitario || prod?.preco_venda || 0)),
+      desconto,
+      subtotal: novoItem.garantia ? 0 : Math.max(0, quantidade * precoUnitario - desconto),
       produto_nome: prod?.nome,
       garantia: novoItem.garantia
     }]);
-    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, garantia: false });
+    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false });
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -233,7 +236,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         await supabase.from('vendas_itens').delete().eq('venda_id', venda.id);
         await supabase.from('vendas_itens').insert(itens.map(i => ({
           venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade,
-          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, subtotal: i.subtotal
+          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, subtotal: i.subtotal
         })));
 
         await deduzirEstoque(lojaId, venda.id);
@@ -253,7 +256,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           await supabase.from('vendas_itens').insert(itens.map(i => ({
             venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
-            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, subtotal: i.subtotal
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, subtotal: i.subtotal
           })));
 
           await deduzirEstoque(lojaId, vendaId);
@@ -337,7 +340,9 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
                 <div key={idx} className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
                   <span className="flex-1 text-sm font-medium text-gray-700">{item.produto_nome || `Produto #${item.produto_id}`}</span>
                   <span className="text-sm text-gray-500">Qtd: {item.quantidade}</span>
-                  <span className="text-sm text-gray-400 text-xs">Custo: {formatMoney(item.preco_custo)}</span>
+                  {item.desconto > 0 && (
+                    <span className="text-sm text-red-500 text-xs">Desconto: -{formatMoney(item.desconto)}</span>
+                  )}
                   {item.garantia ? (
                     <span className="text-sm text-red-600 font-medium">-R$ 100,00</span>
                   ) : (
@@ -368,8 +373,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
               min={1} step="1" />
             <Input label="Preço Unitário" type="number" value={novoItem.preco_unitario}
               onChange={(e) => setNovoItem({ ...novoItem, preco_unitario: parseFloat(e.target.value) || 0 })} step="0.01" />
-            <Input label="Preço Custo" type="number" value={novoItem.preco_custo}
-              onChange={(e) => setNovoItem({ ...novoItem, preco_custo: parseFloat(e.target.value) || 0 })} step="0.01" />
+            <Input label="Desconto" type="number" value={novoItem.desconto}
+              onChange={(e) => setNovoItem({ ...novoItem, desconto: parseFloat(e.target.value) || 0 })} step="0.01" />
             <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px] mt-6">+ Adicionar</Button>
           </div>
 
