@@ -17,6 +17,10 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
     window.print();
   };
 
+  const temPneuRemold = itens.some((i: any) =>
+    (i.produto_nome || i.produtos?.nome || '').toLowerCase().includes('remold')
+  );
+
   const garantia = venda?.observacao?.toLowerCase().includes('garantia')
     ? venda.observacao
     : 'Garantia de 3 meses contra defeitos de fabricação.';
@@ -167,8 +171,9 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         </div>
 
         {/* Totais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className={`grid grid-cols-1 ${temPneuRemold ? 'md:grid-cols-2' : ''} gap-6 mb-6`}>
           {/* Garantia */}
+          {temPneuRemold && (
           <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 print-break-inside">
             <div className="flex items-start gap-3">
               <span className="text-2xl">🛡️</span>
@@ -192,6 +197,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
             </div>
           </div>
+          )}
 
           {/* Totais */}
           <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 print-break-inside">
