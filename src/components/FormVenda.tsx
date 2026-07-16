@@ -223,6 +223,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (!form.loja_id) { toast.error('Selecione a loja'); return; }
     if (!form.vendedor_id) { toast.error('Selecione o vendedor'); return; }
     if (!form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
+    if (!form.cliente_id) { toast.error('Selecione o cliente'); return; }
     setLoading(true);
 
     try {
@@ -311,7 +312,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           <div className="md:col-span-2">
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <SearchSelect label="Cliente" value={form.cliente_id}
+                <SearchSelect label="Cliente *" value={form.cliente_id}
                   onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val.toString() }))}
                   options={clientes.map(c => ({ value: c.id, label: c.nome }))}
                   placeholder="Digite o nome do cliente..." />
