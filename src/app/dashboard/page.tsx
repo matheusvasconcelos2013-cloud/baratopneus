@@ -29,6 +29,7 @@ interface LojaResumo {
   totalVendas: number;
   ticketMedio: number;
   pneusVendidos: number;
+  pneusGarantia: number;
 }
 
 type Periodo = 'dia' | 'mes' | 'ano';
@@ -91,6 +92,7 @@ export default function DashboardPage() {
 
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [pneusPorLoja, setPneusPorLoja] = useState<Record<number, number>>({});
+  const [pneusGarantiaPorLoja, setPneusGarantiaPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
 
   const [lojaDetalhe, setLojaDetalhe] = useState<{ id: number; nome: string } | null>(null);
@@ -140,12 +142,12 @@ export default function DashboardPage() {
       if (vendasErr) throw vendasErr;
       setVendas(vendasData || []);
 
-      // 2) Quantidade de pneus vendidos (produtos tipo = 'Produto') nas vendas do período
+      // 2) Quantidade de pneus vendidos e em garantia (produtos tipo = 'Produto') nas vendas do período
       const vendaIds = (vendasData || []).map(v => v.id);
       if (vendaIds.length > 0) {
         const { data: itensData, error: itensErr } = await supabase
           .from('vendas_itens')
-          .select('venda_id, quantidade, produto:produtos(tipo)')
+          .select('venda_id, quantidade, garantia, produto:produtos(tipo)')
           .in('venda_id', vendaIds);
 
         if (itensErr) throw itensErr;
@@ -154,16 +156,24 @@ export default function DashboardPage() {
         (vendasData || []).forEach(v => { mapaVendaLoja[v.id] = v.loja_id; });
 
         const pneusPorLojaTmp: Record<number, number> = {};
+        const pneusGarantiaTmp: Record<number, number> = {};
         (itensData || []).forEach((item: any) => {
           const ehProduto = item.produto?.tipo === 'Produto';
           if (!ehProduto) return;
           const lojaId = mapaVendaLoja[item.venda_id];
           if (!lojaId) return;
-          pneusPorLojaTmp[lojaId] = (pneusPorLojaTmp[lojaId] || 0) + (item.quantidade || 0);
+
+          if (item.garantia) {
+            pneusGarantiaTmp[lojaId] = (pneusGarantiaTmp[lojaId] || 0) + (item.quantidade || 0);
+          } else {
+            pneusPorLojaTmp[lojaId] = (pneusPorLojaTmp[lojaId] || 0) + (item.quantidade || 0);
+          }
         });
         setPneusPorLoja(pneusPorLojaTmp);
+        setPneusGarantiaPorLoja(pneusGarantiaTmp);
       } else {
         setPneusPorLoja({});
+        setPneusGarantiaPorLoja({});
       }
 
       // 3) Evolução no período (agrupado por dia se 'mes'/'dia', por mês se 'ano')
@@ -238,24 +248,27 @@ export default function DashboardPage() {
           totalVendas,
           ticketMedio: totalVendas > 0 ? faturamento / totalVendas : 0,
           pneusVendidos: pneusPorLoja[loja.id] || 0,
+          pneusGarantia: pneusGarantiaPorLoja[loja.id] || 0,
         };
       })
       .sort((a, b) => b.faturamento - a.faturamento);
-  }, [lojas, vendas, pneusPorLoja, lojaAtiva]);
+  }, [lojas, vendas, pneusPorLoja, pneusGarantiaPorLoja, lojaAtiva]);
 
   const kpis = useMemo(() => {
     const faturamento = vendas.reduce((acc, v) => acc + (v.valor_total || 0), 0);
     const lucro = vendas.reduce((acc, v) => acc + (v.lucro_final || 0), 0);
     const totalVendas = vendas.length;
     const totalPneus = Object.values(pneusPorLoja).reduce((acc, q) => acc + q, 0);
+    const totalPneusGarantia = Object.values(pneusGarantiaPorLoja).reduce((acc, q) => acc + q, 0);
     return {
       faturamento,
       lucro,
       totalVendas,
       ticketMedio: totalVendas > 0 ? faturamento / totalVendas : 0,
       totalPneus,
+      totalPneusGarantia,
     };
-  }, [vendas, pneusPorLoja]);
+  }, [vendas, pneusPorLoja, pneusGarantiaPorLoja]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
@@ -324,12 +337,13 @@ export default function DashboardPage() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           <KpiCard titulo="Faturamento" valor={formatMoney(kpis.faturamento)} cor="text-green-600" icone="💰" />
           <KpiCard titulo="Lucro" valor={formatMoney(kpis.lucro)} cor="text-blue-600" icone="📈" />
           <KpiCard titulo="Vendas" valor={kpis.totalVendas.toString()} cor="text-gray-800" icone="🧾" />
           <KpiCard titulo="Ticket Médio" valor={formatMoney(kpis.ticketMedio)} cor="text-purple-600" icone="🎯" />
           <KpiCard titulo="Pneus Vendidos" valor={kpis.totalPneus.toString()} cor="text-orange-600" icone="🛞" />
+          <KpiCard titulo="Pneus em Garantia" valor={kpis.totalPneusGarantia.toString()} cor="text-red-600" icone="🛡️" />
         </div>
 
         {/* Gráficos */}
@@ -389,6 +403,7 @@ export default function DashboardPage() {
                   <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Lucro</th>
                   <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Ticket Médio</th>
                   <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Pneus Vendidos</th>
+                  <th className="text-right py-3 px-6 text-sm font-medium text-gray-500">Pneus em Garantia</th>
                 </tr>
               </thead>
               <tbody>
@@ -404,10 +419,11 @@ export default function DashboardPage() {
                     <td className="py-3 px-6 text-sm text-right text-blue-600">{formatMoney(r.lucro)}</td>
                     <td className="py-3 px-6 text-sm text-right text-purple-600">{formatMoney(r.ticketMedio)}</td>
                     <td className="py-3 px-6 text-sm text-right text-orange-600 font-medium">{r.pneusVendidos}</td>
+                    <td className="py-3 px-6 text-sm text-right text-red-600 font-medium">{r.pneusGarantia}</td>
                   </tr>
                 ))}
                 {resumoPorLoja.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-8 text-gray-400">Nenhuma venda no período</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhuma venda no período</td></tr>
                 )}
               </tbody>
             </table>
