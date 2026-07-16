@@ -374,7 +374,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             <Input label="Preço Unitário" type="number" value={novoItem.preco_unitario}
               onChange={(e) => setNovoItem({ ...novoItem, preco_unitario: parseFloat(e.target.value) || 0 })} step="0.01" />
             <Input label="Desconto" type="number" value={novoItem.desconto}
-              onChange={(e) => setNovoItem({ ...novoItem, desconto: parseFloat(e.target.value) || 0 })} step="0.01" />
+              onChange={(e) => setNovoItem({ ...novoItem, desconto: parseInt(e.target.value, 10) || 0 })} step="1" min={0} />
             <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px] mt-6">+ Adicionar</Button>
           </div>
 
