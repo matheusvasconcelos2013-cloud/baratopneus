@@ -76,3 +76,17 @@ export async function marcarTodasComoLidas() {
   emitir();
   await supabase.from('notificacoes').update({ lida: true }).in('id', ids);
 }
+
+export async function excluirNotificacao(id: number) {
+  notificacoes = notificacoes.filter((n) => n.id !== id);
+  emitir();
+  await supabase.from('notificacoes').delete().eq('id', id);
+}
+
+export async function limparNotificacoes() {
+  const ids = notificacoes.map((n) => n.id);
+  if (ids.length === 0) return;
+  notificacoes = [];
+  emitir();
+  await supabase.from('notificacoes').delete().in('id', ids);
+}

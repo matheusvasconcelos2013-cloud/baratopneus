@@ -7,6 +7,8 @@ import {
   subscribeNotificacoes,
   marcarComoLida,
   marcarTodasComoLidas,
+  excluirNotificacao,
+  limparNotificacoes,
 } from '@/lib/notificacoesStore';
 import { pushSuportado, pushJaAtivo, ativarPushNotifications } from '@/lib/push';
 
@@ -60,7 +62,7 @@ export default function NotificationBell({ userEmail }: NotificationBellProps) {
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
-        title="Notificações"
+        aria-label="Notificações"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -76,11 +78,18 @@ export default function NotificationBell({ userEmail }: NotificationBellProps) {
         <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[90vw] max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-[60]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <span className="font-semibold text-sm text-gray-800">Notificações</span>
-            {naoLidas > 0 && (
-              <button onClick={marcarTodasComoLidas} className="text-xs text-blue-600 hover:underline">
-                Marcar todas como lidas
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {naoLidas > 0 && (
+                <button onClick={marcarTodasComoLidas} className="text-xs text-blue-600 hover:underline">
+                  Marcar todas como lidas
+                </button>
+              )}
+              {notificacoes.length > 0 && (
+                <button onClick={limparNotificacoes} className="text-xs text-gray-400 hover:text-red-600 hover:underline">
+                  Limpar tudo
+                </button>
+              )}
+            </div>
           </div>
 
           {pushSuportado() && !pushAtivo && (
@@ -97,24 +106,31 @@ export default function NotificationBell({ userEmail }: NotificationBellProps) {
             <p className="text-sm text-gray-400 text-center py-8">Nenhuma notificação</p>
           ) : (
             notificacoes.map((n) => (
-              <button
+              <div
                 key={n.id}
                 onClick={() => marcarComoLida(n.id)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition ${
+                className={`group flex items-start gap-2 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer ${
                   !n.lida ? 'bg-blue-50/60' : ''
                 }`}
               >
-                <div className="flex items-start gap-2">
-                  {!n.lida && <span className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 shrink-0" />}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{n.titulo}</p>
-                    <p className="text-xs text-gray-500 line-clamp-2">{n.mensagem}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      {new Date(n.created_at).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
+                {!n.lida && <span className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 truncate">{n.titulo}</p>
+                  <p className="text-xs text-gray-500 line-clamp-2">{n.mensagem}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {new Date(n.created_at).toLocaleString('pt-BR')}
+                  </p>
                 </div>
-              </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); excluirNotificacao(n.id); }}
+                  className="shrink-0 p-1 text-gray-300 hover:text-red-600 transition"
+                  aria-label="Excluir notificação"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             ))
           )}
         </div>
