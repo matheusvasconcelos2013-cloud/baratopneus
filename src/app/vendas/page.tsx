@@ -145,9 +145,15 @@ export default function VendasPage() {
     }
   };
 
+  const hojeLocal = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+
   const vendasFiltradas = vendas.filter(v => {
-    const data = new Date(v.data_venda);
-    if (periodo === 'hoje') return v.data_venda === new Date().toISOString().split('T')[0];
+    if (periodo === 'hoje') return v.data_venda === hojeLocal;
+    const [ano, mes, dia] = v.data_venda.split('T')[0].split('-').map(Number);
+    const data = new Date(ano, mes - 1, dia);
     if (periodo === 'semana') return data >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     if (periodo === 'mes') return data >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     return true;
