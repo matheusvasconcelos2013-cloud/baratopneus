@@ -311,7 +311,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar user={user} onLogout={handleLogout} />
       <main className="flex-1 min-w-0 p-4 pt-20 md:p-8">
-        <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
+        <header className="flex flex-wrap justify-center sm:justify-between items-center gap-4 mb-8 text-center sm:text-left">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">📊 Dashboard Administrativo</h1>
             <p className="text-gray-500 mt-1 capitalize">{labelPeriodo()}</p>
@@ -319,7 +319,7 @@ export default function DashboardPage() {
         </header>
 
         {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-3 items-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap justify-center sm:justify-start gap-3 items-center">
           {[{ k: 'dia', l: 'Dia' }, { k: 'mes', l: 'Mês' }, { k: 'ano', l: 'Ano' }].map(i => (
             <button key={i.k} onClick={() => setPeriodo(i.k as Periodo)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -341,7 +341,7 @@ export default function DashboardPage() {
           </button>
 
           <select value={lojaAtiva} onChange={(e) => setLojaAtiva(e.target.value)}
-            className="ml-auto px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+            className="sm:ml-auto px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
             <option value="">📍 Todas as Lojas</option>
             {lojas.map(loja => (
               <option key={loja.id} value={loja.id}>{loja.nome}</option>
