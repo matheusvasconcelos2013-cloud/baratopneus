@@ -17,10 +17,16 @@ interface VendaRow {
   loja: { nome: string; telefone?: string; endereco?: string; cidade?: string; estado?: string } | null;
 }
 
+function hojeLocalStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function VendasPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [meuColaboradorId, setMeuColaboradorId] = useState<number | null>(null);
   const [vendas, setVendas] = useState<VendaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState(() => {
@@ -51,21 +57,29 @@ export default function VendasPage() {
         setUser(session.user);
 
         let isUserAdmin = false;
+        let colaboradorId: number | null = null;
         if (session.user?.email) {
           const { data: colaborador } = await supabase
             .from('colaboradores')
-            .select('is_admin')
+            .select('id, is_admin')
             .eq('email', session.user.email)
             .maybeSingle();
 
           if (colaborador?.is_admin) {
             isUserAdmin = true;
           }
+          colaboradorId = colaborador?.id ?? null;
         }
 
         setIsAdmin(isUserAdmin);
+        setMeuColaboradorId(colaboradorId);
 
-        await carregarVendas();
+        // Vendedores só podem ver as próprias vendas do dia; força o período
+        if (!isUserAdmin) {
+          setPeriodo('hoje');
+        }
+
+        await carregarVendas(isUserAdmin, colaboradorId);
       } catch (err) {
         console.error('Erro na inicialização:', err);
         setLoading(false);
@@ -75,7 +89,22 @@ export default function VendasPage() {
     inicializar();
   }, [router]);
 
-  const carregarVendas = async () => {
+  const carregarVendas = async (adminFlag: boolean = isAdmin, colaboradorId: number | null = meuColaboradorId) => {
+  // Vendedores (não-admin) só enxergam as próprias vendas do dia
+  if (!adminFlag) {
+    const { data, error } = await supabase
+      .from('vendas')
+      .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
+      .eq('data_venda', hojeLocalStr())
+      .eq('vendedor_id', colaboradorId ?? -1)
+      .order('data_venda', { ascending: false });
+
+    if (error) console.error('Erro ao carregar vendas:', error);
+    setVendas((data || []) as any);
+    setLoading(false);
+    return;
+  }
+
   let todasVendas: any[] = [];
   let pagina = 0;
   const tamanhoPagina = 1000;
@@ -245,17 +274,24 @@ export default function VendasPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-2">
-          {[
-            { k: 'hoje', l: 'Hoje' },
-            { k: 'semana', l: '7 dias' },
-            { k: 'mes', l: '30 dias' },
-            ...(isAdmin ? [{ k: 'todos', l: 'Todas' }] : [])
-          ].map(i => (
-            <button key={i.k} onClick={() => setPeriodo(i.k)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
-          ))}
-        </div>
+        {isAdmin ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-2">
+            {[
+              { k: 'hoje', l: 'Hoje' },
+              { k: 'semana', l: '7 dias' },
+              { k: 'mes', l: '30 dias' },
+              { k: 'todos', l: 'Todas' },
+            ].map(i => (
+              <button key={i.k} onClick={() => setPeriodo(i.k)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+            <span className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white">Hoje</span>
+            <span className="text-xs text-gray-400 ml-3">Você vê apenas as suas próprias vendas do dia</span>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
@@ -275,7 +311,10 @@ export default function VendasPage() {
               </thead>
               <tbody>
                 {vendasFiltradas.map(v => (
-                  <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={v.id}
+                    onClick={isAdmin ? () => imprimirRecibo(v) : undefined}
+                    className={`border-b border-gray-100 hover:bg-gray-50 ${isAdmin ? 'cursor-pointer' : ''}`}
+                    title={isAdmin ? 'Ver detalhes completos da venda' : undefined}>
                     <td className="py-3 px-4 text-sm font-medium text-gray-800">#{v.codigo || v.id}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.cliente?.nome || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.vendedor?.nome || '-'}</td>
@@ -286,7 +325,7 @@ export default function VendasPage() {
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${v.tipo_pagamento === 'À Vista' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{v.tipo_pagamento || '-'}</span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-center gap-2">
                         <button onClick={() => imprimirRecibo(v)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title="Imprimir Recibo">
