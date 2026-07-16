@@ -223,6 +223,37 @@ CREATE TABLE IF NOT EXISTS movimentacao_estoque (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- 16. TABELA DE NOTIFICAÇÕES
+CREATE TABLE IF NOT EXISTS notificacoes (
+  id SERIAL PRIMARY KEY,
+  tipo VARCHAR(30) DEFAULT 'venda',
+  titulo VARCHAR(200) NOT NULL,
+  mensagem TEXT,
+  loja_id INTEGER REFERENCES lojas(id),
+  referencia_id INTEGER,
+  lida BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE notificacoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuários autenticados podem ver notificações"
+  ON notificacoes FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Usuários autenticados podem criar notificações"
+  ON notificacoes FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Usuários autenticados podem atualizar notificações"
+  ON notificacoes FOR UPDATE
+  TO authenticated
+  USING (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE notificacoes;
+
 -- ============================================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================================
