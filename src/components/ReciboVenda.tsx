@@ -158,7 +158,13 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
                   <td className="py-3 px-4 text-sm text-gray-600 font-mono">{item.produto_id || '-'}</td>
                   <td className="py-3 px-4 text-sm font-medium text-gray-800">
                     {item.produto_nome || item.produtos?.nome || `Produto #${item.produto_id}`}
-                    {item.lado && <span className="ml-2 text-xs font-normal text-blue-600">({item.lado})</span>}
+                    {item.lado && (
+                      <span className="ml-2 text-xs font-normal text-blue-600">
+                        ({item.lado}
+                        {item.medida_esquerdo != null && ` - Esq: ${item.medida_esquerdo}`}
+                        {item.medida_direito != null && ` - Dir: ${item.medida_direito}`})
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-sm text-right text-gray-700">{formatMoney(item.preco_unitario)}</td>
                   <td className="py-3 px-4 text-sm text-center text-gray-700">{item.quantidade} Un</td>

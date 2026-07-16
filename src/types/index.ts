@@ -94,6 +94,8 @@ export interface VendaItem {
   desconto?: number;
   garantia?: boolean;
   lado?: string;
+  medida_esquerdo?: number;
+  medida_direito?: number;
   subtotal: number;
 }
 

@@ -30,7 +30,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean; lado: string }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '' });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean; lado: string; medida_esquerdo: string; medida_direito: string }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo: '', medida_direito: '' });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -109,7 +109,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const adicionarItem = () => {
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
-    if (ehAlinhamento(prod?.nome) && !novoItem.lado) { toast.error('Selecione o lado do alinhamento'); return; }
+    const alinhamento = ehAlinhamento(prod?.nome);
+    if (alinhamento && !novoItem.lado) { toast.error('Selecione o lado do alinhamento'); return; }
+    if (alinhamento && (novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_esquerdo) { toast.error('Informe a medida do lado esquerdo'); return; }
+    if (alinhamento && (novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_direito) { toast.error('Informe a medida do lado direito'); return; }
     const quantidade = Number(novoItem.quantidade) || 1;
     const precoUnitario = novoItem.preco_unitario || prod?.preco_venda || 0;
     const desconto = novoItem.desconto || 0;
@@ -122,9 +125,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       subtotal: novoItem.garantia ? 0 : Math.max(0, quantidade * precoUnitario - desconto),
       produto_nome: prod?.nome,
       garantia: novoItem.garantia,
-      lado: ehAlinhamento(prod?.nome) ? novoItem.lado : undefined
+      lado: alinhamento ? novoItem.lado : undefined,
+      medida_esquerdo: alinhamento && novoItem.medida_esquerdo ? parseFloat(novoItem.medida_esquerdo) : undefined,
+      medida_direito: alinhamento && novoItem.medida_direito ? parseFloat(novoItem.medida_direito) : undefined
     }]);
-    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '' });
+    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo: '', medida_direito: '' });
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -261,7 +266,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           await supabase.from('vendas_itens').insert(itens.map(i => ({
             venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
-            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, subtotal: i.subtotal
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, medida_esquerdo: i.medida_esquerdo ?? null, medida_direito: i.medida_direito ?? null, subtotal: i.subtotal
           })));
 
           await deduzirEstoque(lojaId, vendaId);
@@ -345,7 +350,13 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
                 <div key={idx} className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
                   <span className="flex-1 text-sm font-medium text-gray-700">
                     {item.produto_nome || `Produto #${item.produto_id}`}
-                    {item.lado && <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{item.lado}</span>}
+                    {item.lado && (
+                      <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                        {item.lado}
+                        {item.medida_esquerdo != null && ` | Esq: ${item.medida_esquerdo}`}
+                        {item.medida_direito != null && ` | Dir: ${item.medida_direito}`}
+                      </span>
+                    )}
                   </span>
                   <span className="text-sm text-gray-500">Qtd: {item.quantidade}</span>
                   {item.desconto > 0 && (
@@ -367,7 +378,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
-              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0, lado: '' });
+              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0, lado: '', medida_esquerdo: '', medida_direito: '' });
             }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
@@ -387,11 +398,19 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           </div>
 
           {ehAlinhamento(produtos.find(p => p.id === Number(novoItem.produto_id))?.nome) && (
-            <div className="mb-4">
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
               <Select label="Lado do Alinhamento *" value={novoItem.lado}
-                onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value })}
+                onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value, medida_esquerdo: '', medida_direito: '' })}
                 options={[{ value: 'Esquerdo', label: 'Esquerdo' }, { value: 'Direito', label: 'Direito' }, { value: 'Esquerdo e Direito', label: 'Esquerdo e Direito' }]}
                 placeholder="Selecione o lado" />
+              {(novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && (
+                <Input label="Medida Esquerdo *" type="number" step="0.01" value={novoItem.medida_esquerdo}
+                  onChange={(e) => setNovoItem({ ...novoItem, medida_esquerdo: e.target.value })} placeholder="Medida" />
+              )}
+              {(novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && (
+                <Input label="Medida Direito *" type="number" step="0.01" value={novoItem.medida_direito}
+                  onChange={(e) => setNovoItem({ ...novoItem, medida_direito: e.target.value })} placeholder="Medida" />
+              )}
             </div>
           )}
 
