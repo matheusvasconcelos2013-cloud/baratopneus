@@ -488,19 +488,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
                   placeholder="Nome do cliente" autoFocus />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                  <input type="text" value={novoCliente.telefone} onChange={(e) => setNovoCliente({ ...novoCliente, telefone: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                    placeholder="(11) 0000-0000" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
-                  <input type="text" value={novoCliente.celular} onChange={(e) => setNovoCliente({ ...novoCliente, celular: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                    placeholder="(11) 90000-0000" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                <input type="text" value={novoCliente.celular} onChange={(e) => setNovoCliente({ ...novoCliente, celular: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                  placeholder="(11) 90000-0000" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ</label>
