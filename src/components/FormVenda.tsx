@@ -381,7 +381,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
               setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0, lado: '', medida_esquerdo: '', medida_direito: '' });
-            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
+            }} options={produtos.map(p => ({ value: p.id, label: p.nome }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
               onChange={(e) => {
