@@ -21,9 +21,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
     (i.produto_nome || i.produtos?.nome || '').toLowerCase().includes('remold')
   );
 
-  const garantia = venda?.observacao?.toLowerCase().includes('garantia')
-    ? venda.observacao
-    : 'Garantia de 3 meses contra defeitos de fabricação.';
+  const garantia = 'Garantia de 3 meses contra defeitos de fabricação.';
 
   const data = new Date().toLocaleDateString('pt-BR');
   const hora = new Date().toLocaleTimeString('pt-BR');
