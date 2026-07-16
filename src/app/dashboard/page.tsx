@@ -146,8 +146,8 @@ export default function DashboardPage() {
 
       const canaisTmp: Record<string, number> = {};
       (vendasData || []).forEach((v: any) => {
-        const canal = v.como_conheceu || 'Não informado';
-        canaisTmp[canal] = (canaisTmp[canal] || 0) + 1;
+        if (!v.como_conheceu) return;
+        canaisTmp[v.como_conheceu] = (canaisTmp[v.como_conheceu] || 0) + 1;
       });
       setCanaisAquisicao(
         Object.entries(canaisTmp)
