@@ -16,7 +16,7 @@ export default function ColaboradoresPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [form, setForm] = useState({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true, email: '', is_admin: false });
+  const [form, setForm] = useState({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true, email: '', is_admin: false, notificar_vendas: false });
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -42,17 +42,17 @@ export default function ColaboradoresPage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
-  const openNew = () => { setEditing(null); setForm({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true, email: '', is_admin: false }); setShowForm(true); };
-  const openEdit = (item: any) => { setEditing(item); setForm({ nome: item.nome, funcao: item.funcao || '', telefone: item.telefone || '', comissao_percentual: item.comissao_percentual || 0, ativo: item.ativo !== false, email: item.email || '', is_admin: item.is_admin || false }); setShowForm(true); };
+  const openNew = () => { setEditing(null); setForm({ nome: '', funcao: '', telefone: '', comissao_percentual: 0, ativo: true, email: '', is_admin: false, notificar_vendas: false }); setShowForm(true); };
+  const openEdit = (item: any) => { setEditing(item); setForm({ nome: item.nome, funcao: item.funcao || '', telefone: item.telefone || '', comissao_percentual: item.comissao_percentual || 0, ativo: item.ativo !== false, email: item.email || '', is_admin: item.is_admin || false, notificar_vendas: item.notificar_vendas || false }); setShowForm(true); };
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
-      // Email e is_admin só podem ser alterados por administradores
-      const { email, is_admin, ...payload } = form;
+      // Email, is_admin e notificar_vendas só podem ser alterados por administradores
+      const { email, is_admin, notificar_vendas, ...payload } = form;
       const dados: any = payload;
-      if (isAdmin) { dados.email = email; dados.is_admin = is_admin; }
+      if (isAdmin) { dados.email = email; dados.is_admin = is_admin; dados.notificar_vendas = notificar_vendas; }
 
       if (editing) {
         await supabase.from('colaboradores').update(dados).eq('id', editing.id);
@@ -130,6 +130,10 @@ export default function ColaboradoresPage() {
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="is_admin" checked={form.is_admin} onChange={(e) => setForm({ ...form, is_admin: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
                   <label htmlFor="is_admin" className="text-sm text-gray-700">É administrador (acessa o Dashboard Admin)</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="notificar_vendas" checked={form.notificar_vendas} onChange={(e) => setForm({ ...form, notificar_vendas: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
+                  <label htmlFor="notificar_vendas" className="text-sm text-gray-700">🔔 Recebe notificações de novas vendas</label>
                 </div>
               </div>
             )}

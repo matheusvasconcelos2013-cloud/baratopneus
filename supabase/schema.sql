@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS colaboradores (
   telefone VARCHAR(20),
   comissao_percentual DECIMAL(5,2) DEFAULT 0,
   ativo BOOLEAN DEFAULT TRUE,
+  notificar_vendas BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
