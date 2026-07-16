@@ -64,12 +64,9 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
   };
 
   const carregarItens = async (remessaId: number) => {
-    const { data } = await supabase.from('remessas_itens').select('*').eq('remessa_id', remessaId);
+    const { data } = await supabase.from('remessas_itens').select('*, produtos(nome)').eq('remessa_id', remessaId);
     if (data) {
-      const itensComNome = data.map(item => {
-        const produto = produtos.find(p => p.id === item.produto_id);
-        return { ...item, produto_nome: produto?.nome };
-      });
+      const itensComNome = data.map(item => ({ ...item, produto_nome: item.produtos?.nome }));
       setItens(itensComNome);
     }
   };
