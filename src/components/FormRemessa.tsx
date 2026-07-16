@@ -56,7 +56,8 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
     const [l, f, p] = await Promise.all([
       supabase.from('lojas').select('id,nome').order('nome'),
       supabase.from('fornecedores').select('id,nome').order('nome'),
-supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true).eq('tipo', 'Produto').order('nome'),    ]);
+      supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true).eq('tipo', 'Produto').not('nome', 'ilike', '%usado%').order('nome'),
+    ]);
     if (l.data) setLojas(l.data);
     if (f.data) setFornecedores(f.data);
     if (p.data) setProdutos(p.data);
