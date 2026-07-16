@@ -222,6 +222,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (itens.length === 0) { toast.error('Adicione pelo menos um item à venda'); return; }
     if (!form.loja_id) { toast.error('Selecione a loja'); return; }
     if (!form.vendedor_id) { toast.error('Selecione o vendedor'); return; }
+    if (!form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
     setLoading(true);
 
     try {
@@ -302,7 +303,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     <Modal isOpen={isOpen} onClose={onClose} title={venda ? 'Editar Venda' : 'Nova Venda'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Select label="Como conheceu a loja" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
+          <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
             options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }]}
             placeholder="Selecione" />
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
