@@ -403,7 +403,7 @@ export default function DashboardPage() {
 
         {/* Como conheceu a loja */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Como os Clientes Conheceram a Loja</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Como os Clientes Conheceram</h2>
           {canaisAquisicao.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
           ) : (
