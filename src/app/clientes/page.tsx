@@ -29,8 +29,25 @@ export default function ClientesPage() {
   }, [router]);
 
   const carregarClientes = async () => {
-    const { data } = await supabase.from('clientes').select('*').order('nome');
-    if (data) setClientes(data);
+    let todos: Cliente[] = [];
+    let pagina = 0;
+    const tamanhoPagina = 1000;
+    let temMais = true;
+
+    while (temMais) {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('nome')
+        .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
+
+      if (error || !data || data.length === 0) { temMais = false; break; }
+      todos = [...todos, ...data];
+      temMais = data.length === tamanhoPagina;
+      pagina++;
+    }
+
+    setClientes(todos);
     setLoading(false);
   };
 

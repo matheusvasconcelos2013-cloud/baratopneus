@@ -60,14 +60,37 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     }
   }, [venda, isOpen]);
 
+  const buscarTodosClientes = async () => {
+    let todos: any[] = [];
+    let pagina = 0;
+    const tamanhoPagina = 1000;
+    let temMais = true;
+
+    while (temMais) {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('id,nome')
+        .eq('status', 'Ativo')
+        .order('nome')
+        .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
+
+      if (error || !data || data.length === 0) { temMais = false; break; }
+      todos = [...todos, ...data];
+      temMais = data.length === tamanhoPagina;
+      pagina++;
+    }
+
+    return todos;
+  };
+
   const carregarDados = async () => {
     const [c, v, p, l] = await Promise.all([
-      supabase.from('clientes').select('id,nome').eq('status', 'Ativo').order('nome'),
+      buscarTodosClientes(),
       supabase.from('colaboradores').select('id,nome').eq('ativo', true).order('nome'),
       supabase.from('produtos').select('id,nome,preco_venda,preco_custo,quantidade_estoque').order('nome'),
       supabase.from('lojas').select('id,nome').order('nome'),
     ]);
-    if (c.data) setClientes(c.data as any);
+    setClientes(c as any);
     if (v.data) setVendedores(v.data as any);
     if (p.data) setProdutos(p.data as any);
     if (l.data) setLojas(l.data as any);
@@ -205,8 +228,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       if (data) {
         toast.success(`Cliente "${novoCliente.nome}" cadastrado!`);
         setForm(prev => ({ ...prev, cliente_id: data[0].id.toString() }));
-        const { data: clientesAtualizados } = await supabase.from('clientes').select('id,nome').eq('status', 'Ativo').order('nome');
-        if (clientesAtualizados) setClientes(clientesAtualizados as any);
+        setClientes(await buscarTodosClientes() as any);
         setShowNovoCliente(false);
         setNovoCliente({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
       }
