@@ -59,7 +59,14 @@ export default function ClientesPage() {
   const excluir = async (id: number, nome: string) => {
     if (!confirm(`Tem certeza que deseja excluir "${nome}"?`)) return;
     const { error } = await supabase.from('clientes').delete().eq('id', id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      if (error.code === '23503') {
+        toast.error(`"${nome}" tem vendas registradas e não pode ser excluído. Marque como "Inativo" em vez de excluir.`);
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     toast.success('Cliente excluído');
     carregarClientes();
   };
