@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { formatMoney, formatDate } from './FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
+import toast from 'react-hot-toast';
 
 interface ReciboVendaProps {
   venda: any;
@@ -13,8 +15,52 @@ interface ReciboVendaProps {
 }
 
 export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onClose }: ReciboVendaProps) {
-  const handlePrint = () => {
-    window.print();
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+
+  const handlePrint = async () => {
+    // Abre a aba antes do processo assincrono para o iOS Safari nao bloquear como popup
+    const novaAba = window.open('', '_blank');
+    setGerandoPdf(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const elemento = document.getElementById('recibo-venda');
+      if (!elemento) throw new Error('Recibo não encontrado');
+
+      const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      if (imgHeight <= pageHeight) {
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      } else {
+        const escala = pageHeight / imgHeight;
+        const larguraFinal = imgWidth * escala;
+        const xOffset = (pageWidth - larguraFinal) / 2;
+        pdf.addImage(imgData, 'PNG', xOffset, 0, larguraFinal, pageHeight);
+      }
+
+      const blobUrl = pdf.output('bloburl') as unknown as string;
+      if (novaAba) {
+        novaAba.location.href = blobUrl;
+      } else {
+        window.location.href = blobUrl;
+      }
+    } catch (err: any) {
+      novaAba?.close();
+      toast.error('Não foi possível gerar o recibo em PDF.');
+      console.error('Falha ao gerar PDF do recibo:', err);
+    } finally {
+      setGerandoPdf(false);
+    }
   };
 
   const temPneuRemold = itens.some((i: any) =>
@@ -40,12 +86,13 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
       <div className="no-print fixed bottom-8 right-8 z-50 flex flex-col gap-3">
         <button
           onClick={handlePrint}
-          className="bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-2xl hover:bg-blue-700 transition font-bold text-lg flex items-center gap-3"
+          disabled={gerandoPdf}
+          className="bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-2xl hover:bg-blue-700 transition font-bold text-lg flex items-center gap-3 disabled:opacity-60"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          🖨️ Imprimir Recibo
+          {gerandoPdf ? 'Gerando PDF...' : '🖨️ Imprimir Recibo'}
         </button>
         <button
           onClick={onClose}
