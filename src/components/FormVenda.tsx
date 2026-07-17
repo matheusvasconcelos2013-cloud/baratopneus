@@ -257,11 +257,14 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         }]);
         if (erroNotificacao) console.error('Falha ao criar notificação da venda:', erroNotificacao);
 
-        supabase.functions.invoke('send-push', {
-          body: { titulo: 'Nova venda registrada', mensagem: mensagemNotificacao, url: '/vendas' },
-        }).then(({ error }) => {
-          if (error) console.error('Falha ao enviar push da venda:', error);
-        }).catch((err) => console.error('Falha ao enviar push da venda:', err));
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          supabase.functions.invoke('send-push', {
+            body: { titulo: 'Nova venda registrada', mensagem: mensagemNotificacao, url: '/vendas' },
+            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+          }).then(({ error }) => {
+            if (error) console.error('Falha ao enviar push da venda:', error);
+          }).catch((err) => console.error('Falha ao enviar push da venda:', err));
+        });
       };
 
       if (venda) {
