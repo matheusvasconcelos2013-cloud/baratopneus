@@ -29,7 +29,7 @@ export default function LoginPage() {
     const { data: colaborador } = await supabase
       .from('colaboradores')
       .select('is_admin')
-      .eq('email', data.user?.email)
+      .ilike('email', data.user?.email ?? '')
       .single();
 
     toast.success('Login realizado com sucesso!');

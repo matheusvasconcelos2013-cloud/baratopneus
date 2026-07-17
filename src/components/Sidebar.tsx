@@ -68,7 +68,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           const { data: colaborador } = await supabase
             .from('colaboradores')
             .select('is_admin')
-            .eq('email', user.email)
+            .ilike('email', user.email)
             .single();
 
           if (colaborador?.is_admin) {

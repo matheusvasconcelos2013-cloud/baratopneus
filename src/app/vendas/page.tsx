@@ -55,7 +55,7 @@ export default function VendasPage() {
           const { data: colaborador } = await supabase
             .from('colaboradores')
             .select('is_admin')
-            .eq('email', session.user.email)
+            .ilike('email', session.user.email)
             .maybeSingle();
 
           if (colaborador?.is_admin) {

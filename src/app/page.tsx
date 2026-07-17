@@ -15,7 +15,7 @@ export default function Home() {
         const { data: colaborador } = await supabase
           .from('colaboradores')
           .select('is_admin')
-          .eq('email', session.user.email)
+          .ilike('email', session.user.email ?? '')
           .single();
         router.push(colaborador?.is_admin ? '/dashboard' : '/vendas');
       } else {
