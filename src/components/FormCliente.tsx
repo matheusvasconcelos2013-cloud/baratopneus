@@ -63,12 +63,13 @@ export default function FormCliente({ isOpen, onClose, onSaved, cliente }: FormC
     setLoading(true);
 
     try {
+      const dados = { ...form, data_nascimento: form.data_nascimento || null };
       if (cliente) {
-        const { error } = await supabase.from('clientes').update(form).eq('id', cliente.id);
+        const { error } = await supabase.from('clientes').update(dados).eq('id', cliente.id);
         if (error) throw error;
         toast.success('Cliente atualizado!');
       } else {
-        const { error } = await supabase.from('clientes').insert([form]);
+        const { error } = await supabase.from('clientes').insert([dados]);
         if (error) throw error;
         toast.success('Cliente cadastrado!');
       }
