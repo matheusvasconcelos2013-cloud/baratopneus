@@ -77,6 +77,7 @@ export interface Venda {
   situacao?: string;
   tipo_pagamento?: string;
   observacao?: string;
+  como_conheceu?: string;
   created_at: string;
   // Relacionamentos
   cliente?: Cliente;
@@ -93,6 +94,9 @@ export interface VendaItem {
   preco_custo: number;
   desconto?: number;
   garantia?: boolean;
+  lado?: string;
+  medida_esquerdo?: number;
+  medida_direito?: number;
   subtotal: number;
 }
 

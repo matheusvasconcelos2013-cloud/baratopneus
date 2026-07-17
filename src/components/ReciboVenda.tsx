@@ -17,12 +17,18 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
     window.print();
   };
 
-  const garantia = venda?.observacao?.toLowerCase().includes('garantia')
-    ? venda.observacao
-    : 'Garantia de 3 meses contra defeitos de fabricação.';
+  const temPneuRemold = itens.some((i: any) =>
+    (i.produto_nome || i.produtos?.nome || '').toLowerCase().includes('remold')
+  );
 
-  const data = new Date().toLocaleDateString('pt-BR');
-  const hora = new Date().toLocaleTimeString('pt-BR');
+  const garantia = 'Garantia de 3 meses contra defeitos de fabricação.';
+
+  const dataReferencia = venda.created_at ? new Date(venda.created_at) : (venda.data_venda ? new Date(`${venda.data_venda}T00:00:00`) : new Date());
+  const data = dataReferencia.toLocaleDateString('pt-BR');
+  const hora = venda.created_at ? dataReferencia.toLocaleTimeString('pt-BR') : '--:--:--';
+  const agora = new Date();
+  const dataImpressao = agora.toLocaleDateString('pt-BR');
+  const horaImpressao = agora.toLocaleTimeString('pt-BR');
 
   const enderecoLoja = loja?.endereco
     ? `${loja.endereco}${loja.cidade ? ' | ' + loja.cidade : ''}${loja.estado ? ' - ' + loja.estado : ''}`
@@ -82,11 +88,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
             </div>
             <div className="text-right">
-              <div className="bg-blue-600 text-white px-6 py-3 rounded-xl">
-                <p className="text-xs uppercase tracking-wider opacity-80">Venda</p>
-                <p className="text-2xl font-bold">#{venda.codigo || venda.id}</p>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Emissão: {data} às {hora}</p>
+              <p className="text-xs text-gray-500">Venda realizada em: {data}{venda.created_at ? ` às ${hora}` : ''}</p>
             </div>
           </div>
         </div>
@@ -152,7 +154,16 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               {itens.length > 0 ? itens.map((item: any, idx: number) => (
                 <tr key={idx} className={`border-b border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                   <td className="py-3 px-4 text-sm text-gray-600 font-mono">{item.produto_id || '-'}</td>
-                  <td className="py-3 px-4 text-sm font-medium text-gray-800">{item.produto_nome || item.produtos?.nome || `Produto #${item.produto_id}`}</td>
+                  <td className="py-3 px-4 text-sm font-medium text-gray-800">
+                    {item.produto_nome || item.produtos?.nome || `Produto #${item.produto_id}`}
+                    {item.lado && (
+                      <span className="ml-2 text-xs font-normal text-blue-600">
+                        ({item.lado}
+                        {item.medida_esquerdo != null && ` - Esq: ${item.medida_esquerdo}`}
+                        {item.medida_direito != null && ` - Dir: ${item.medida_direito}`})
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3 px-4 text-sm text-right text-gray-700">{formatMoney(item.preco_unitario)}</td>
                   <td className="py-3 px-4 text-sm text-center text-gray-700">{item.quantidade} Un</td>
                   <td className="py-3 px-4 text-sm text-right font-bold text-gray-800">{formatMoney(item.subtotal)}</td>
@@ -167,8 +178,9 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         </div>
 
         {/* Totais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className={`grid grid-cols-1 ${temPneuRemold ? 'md:grid-cols-2' : ''} gap-6 mb-6`}>
           {/* Garantia */}
+          {temPneuRemold && (
           <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 print-break-inside">
             <div className="flex items-start gap-3">
               <span className="text-2xl">🛡️</span>
@@ -192,6 +204,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
             </div>
           </div>
+          )}
 
           {/* Totais */}
           <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 print-break-inside">
@@ -254,10 +267,9 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         <div className="border-t-2 border-gray-300 pt-4 text-center">
           <p className="text-gray-500 text-sm">📧 baratopneus@email.com | 📞 (11) 9.7625-1152</p>
           <p className="text-gray-400 text-xs mt-1">
-            Documento emitido em {data} às {hora} - Barato Pneus
+            Documento emitido em {dataImpressao} às {horaImpressao} - Barato Pneus
           </p>
           <div className="flex justify-center gap-8 mt-4 text-xs text-gray-400">
-            <span>📄 Venda #{venda.codigo || venda.id}</span>
             <span>👤 {cliente?.nome || 'Consumidor'}</span>
           </div>
         </div>

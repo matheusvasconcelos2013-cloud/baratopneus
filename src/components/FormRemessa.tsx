@@ -56,19 +56,17 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
     const [l, f, p] = await Promise.all([
       supabase.from('lojas').select('id,nome').order('nome'),
       supabase.from('fornecedores').select('id,nome').order('nome'),
-supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true).eq('tipo', 'Produto').order('nome'),    ]);
+      supabase.from('produtos').select('id,nome,preco_custo,unidade').eq('ativo', true).eq('tipo', 'Produto').not('nome', 'ilike', '%usado%').order('nome'),
+    ]);
     if (l.data) setLojas(l.data);
     if (f.data) setFornecedores(f.data);
     if (p.data) setProdutos(p.data);
   };
 
   const carregarItens = async (remessaId: number) => {
-    const { data } = await supabase.from('remessas_itens').select('*').eq('remessa_id', remessaId);
+    const { data } = await supabase.from('remessas_itens').select('*, produtos(nome)').eq('remessa_id', remessaId);
     if (data) {
-      const itensComNome = data.map(item => {
-        const produto = produtos.find(p => p.id === item.produto_id);
-        return { ...item, produto_nome: produto?.nome };
-      });
+      const itensComNome = data.map(item => ({ ...item, produto_nome: item.produtos?.nome }));
       setItens(itensComNome);
     }
   };

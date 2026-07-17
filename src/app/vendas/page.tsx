@@ -21,6 +21,7 @@ export default function VendasPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [meuColaboradorId, setMeuColaboradorId] = useState<number | null>(null);
   const [vendas, setVendas] = useState<VendaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState(() => {
@@ -51,21 +52,24 @@ export default function VendasPage() {
         setUser(session.user);
 
         let isUserAdmin = false;
+        let colaboradorId: number | null = null;
         if (session.user?.email) {
           const { data: colaborador } = await supabase
             .from('colaboradores')
-            .select('is_admin')
+            .select('id, is_admin')
             .ilike('email', session.user.email)
             .maybeSingle();
 
           if (colaborador?.is_admin) {
             isUserAdmin = true;
           }
+          colaboradorId = colaborador?.id ?? null;
         }
 
         setIsAdmin(isUserAdmin);
+        setMeuColaboradorId(colaboradorId);
 
-        await carregarVendas();
+        await carregarVendas(isUserAdmin, colaboradorId);
       } catch (err) {
         console.error('Erro na inicialização:', err);
         setLoading(false);
@@ -75,18 +79,25 @@ export default function VendasPage() {
     inicializar();
   }, [router]);
 
-  const carregarVendas = async () => {
+  const carregarVendas = async (adminFlag: boolean = isAdmin, colaboradorId: number | null = meuColaboradorId) => {
   let todasVendas: any[] = [];
   let pagina = 0;
   const tamanhoPagina = 1000;
   let temMais = true;
 
   while (temMais) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('vendas')
       .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
       .order('data_venda', { ascending: false })
       .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
+
+    // Vendedores (não-admin) só enxergam as vendas em que constam como vendedor
+    if (!adminFlag) {
+      query = query.eq('vendedor_id', colaboradorId ?? -1);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Erro ao carregar vendas:', error);
@@ -109,11 +120,59 @@ export default function VendasPage() {
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
   const excluir = async (id: number) => {
-    if (!confirm('Excluir esta venda permanentemente?')) return;
-    await supabase.from('vendas_itens').delete().eq('venda_id', id);
-    const { error } = await supabase.from('vendas').delete().eq('id', id);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Venda excluída'); carregarVendas();
+    if (!confirm('Excluir esta venda permanentemente? O estoque será revertido!')) return;
+    try {
+      const vendaRes = await supabase.from('vendas').select('id, loja_id').eq('id', id).single();
+      const itensRes = await supabase.from('vendas_itens').select('*').eq('venda_id', id);
+
+      if (!vendaRes.data || !itensRes.data) {
+        toast.error('Venda não encontrada');
+        return;
+      }
+
+      const lojaId = vendaRes.data.loja_id;
+      const itens = itensRes.data;
+
+      // Devolve o estoque de cada item ao que era antes da venda
+      for (const item of itens) {
+        if (!item.produto_id) continue;
+        const estoqueAtual = await supabase
+          .from('estoque_lojas')
+          .select('id, quantidade')
+          .eq('produto_id', item.produto_id)
+          .eq('loja_id', lojaId)
+          .maybeSingle();
+
+        if (estoqueAtual.data) {
+          await supabase
+            .from('estoque_lojas')
+            .update({ quantidade: estoqueAtual.data.quantidade + item.quantidade })
+            .eq('id', estoqueAtual.data.id);
+        } else {
+          await supabase.from('estoque_lojas').insert([{
+            produto_id: item.produto_id,
+            loja_id: lojaId,
+            quantidade: item.quantidade,
+          }]);
+        }
+      }
+
+      // Remove o histórico de movimentação de estoque gerado por essa venda
+      await supabase.from('movimentacao_estoque').delete().eq('referencia_id', id).in('motivo', ['Venda', 'Garantia']);
+
+      // Remove o lançamento financeiro gerado por essa venda
+      await supabase.from('contas_financeiro').delete().eq('referencia_id', id).eq('categoria', 'Venda');
+
+      // Remove os itens e a venda
+      await supabase.from('vendas_itens').delete().eq('venda_id', id);
+      const { error } = await supabase.from('vendas').delete().eq('id', id);
+      if (error) { toast.error(error.message); return; }
+
+      toast.success('Venda excluída e estoque revertido!');
+      carregarVendas();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const imprimirRecibo = async (venda: VendaRow) => {
@@ -122,15 +181,17 @@ export default function VendasPage() {
         supabase.from('vendas_itens').select('*, produtos(nome)').eq('venda_id', venda.id),
         supabase.from('clientes').select('*').eq('nome', venda.cliente?.nome || '').maybeSingle(),
       ]);
-      
+
+      const itens = itensRes.data || [];
+
       setReciboData({
         ...venda,
         cliente: clienteRes.data || { nome: venda.cliente?.nome || 'Consumidor' },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: venda.loja || { nome: 'Barato Pneus' },
-        observacao: venda.observacao || 'Garantia de 3 meses contra defeitos de fabricação.'
+        observacao: venda.observacao || ''
       });
-      setReciboItens(itensRes.data || []);
+      setReciboItens(itens);
       setShowRecibo(true);
     } catch (err) {
       setReciboData({
@@ -138,7 +199,7 @@ export default function VendasPage() {
         cliente: { nome: venda.cliente?.nome || 'Consumidor' },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: { nome: 'Barato Pneus' },
-        observacao: 'Garantia de 3 meses contra defeitos de fabricação.'
+        observacao: venda.observacao || ''
       });
       setReciboItens([]);
       setShowRecibo(true);
@@ -200,11 +261,12 @@ export default function VendasPage() {
             { k: 'hoje', l: 'Hoje' },
             { k: 'semana', l: '7 dias' },
             { k: 'mes', l: '30 dias' },
-            ...(isAdmin ? [{ k: 'todos', l: 'Todas' }] : [])
+            ...(isAdmin ? [{ k: 'todos', l: 'Todas' }] : []),
           ].map(i => (
             <button key={i.k} onClick={() => setPeriodo(i.k)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
           ))}
+          {!isAdmin && <span className="text-xs text-gray-400 self-center ml-2">Você vê apenas as vendas em seu nome</span>}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -225,7 +287,10 @@ export default function VendasPage() {
               </thead>
               <tbody>
                 {vendasFiltradas.map(v => (
-                  <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={v.id}
+                    onClick={isAdmin ? () => imprimirRecibo(v) : undefined}
+                    className={`border-b border-gray-100 hover:bg-gray-50 ${isAdmin ? 'cursor-pointer' : ''}`}
+                    title={isAdmin ? 'Ver detalhes completos da venda' : undefined}>
                     <td className="py-3 px-4 text-sm font-medium text-gray-800">#{v.codigo || v.id}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.cliente?.nome || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.vendedor?.nome || '-'}</td>
@@ -236,7 +301,7 @@ export default function VendasPage() {
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${v.tipo_pagamento === 'À Vista' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{v.tipo_pagamento || '-'}</span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-center gap-2">
                         <button onClick={() => imprimirRecibo(v)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title="Imprimir Recibo">

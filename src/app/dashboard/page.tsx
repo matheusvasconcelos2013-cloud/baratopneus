@@ -19,6 +19,7 @@ interface Venda {
   lucro_final: number;
   data_venda: string;
   situacao: string;
+  como_conheceu?: string;
 }
 
 interface LojaResumo {
@@ -94,6 +95,7 @@ export default function DashboardPage() {
   const [pneusPorLoja, setPneusPorLoja] = useState<Record<number, number>>({});
   const [pneusGarantiaPorLoja, setPneusGarantiaPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
+  const [canaisAquisicao, setCanaisAquisicao] = useState<{ canal: string; total: number }[]>([]);
 
   const [lojaDetalhe, setLojaDetalhe] = useState<{ id: number; nome: string } | null>(null);
   const [vendasDetalhe, setVendasDetalhe] = useState<any[]>([]);
@@ -131,7 +133,7 @@ export default function DashboardPage() {
       // 1) Vendas do período (exclui canceladas)
       let query = supabase
         .from('vendas')
-        .select('id, loja_id, valor_total, lucro_final, data_venda, situacao')
+        .select('id, loja_id, valor_total, lucro_final, data_venda, situacao, como_conheceu')
         .gte('data_venda', formatDateInput(inicio))
         .lte('data_venda', formatDateInput(fim))
         .neq('situacao', 'Cancelada');
@@ -141,6 +143,17 @@ export default function DashboardPage() {
       const { data: vendasData, error: vendasErr } = await query;
       if (vendasErr) throw vendasErr;
       setVendas(vendasData || []);
+
+      const canaisTmp: Record<string, number> = {};
+      (vendasData || []).forEach((v: any) => {
+        if (!v.como_conheceu) return;
+        canaisTmp[v.como_conheceu] = (canaisTmp[v.como_conheceu] || 0) + 1;
+      });
+      setCanaisAquisicao(
+        Object.entries(canaisTmp)
+          .map(([canal, total]) => ({ canal, total }))
+          .sort((a, b) => b.total - a.total)
+      );
 
       // 2) Quantidade de pneus vendidos e em garantia (produtos tipo = 'Produto') nas vendas do período
       const vendaIds = (vendasData || []).map(v => v.id);
@@ -298,7 +311,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar user={user} onLogout={handleLogout} />
       <main className="flex-1 min-w-0 p-4 pt-20 md:p-8">
-        <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
+        <header className="flex flex-wrap justify-center sm:justify-between items-center gap-4 mb-8 text-center sm:text-left">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">📊 Dashboard Administrativo</h1>
             <p className="text-gray-500 mt-1 capitalize">{labelPeriodo()}</p>
@@ -306,7 +319,12 @@ export default function DashboardPage() {
         </header>
 
         {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-3 items-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap justify-center sm:justify-start gap-3 items-center">
+          <button onClick={() => setDataRef(new Date())}
+            className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
+            Hoje
+          </button>
+
           {[{ k: 'dia', l: 'Dia' }, { k: 'mes', l: 'Mês' }, { k: 'ano', l: 'Ano' }].map(i => (
             <button key={i.k} onClick={() => setPeriodo(i.k as Periodo)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -322,13 +340,8 @@ export default function DashboardPage() {
               className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">▶</button>
           </div>
 
-          <button onClick={() => setDataRef(new Date())}
-            className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
-            Hoje
-          </button>
-
           <select value={lojaAtiva} onChange={(e) => setLojaAtiva(e.target.value)}
-            className="ml-auto px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+            className="sm:ml-auto px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
             <option value="">📍 Todas as Lojas</option>
             {lojas.map(loja => (
               <option key={loja.id} value={loja.id}>{loja.nome}</option>
@@ -386,6 +399,28 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             )}
           </div>
+        </div>
+
+        {/* Como conheceu a loja */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Como os Clientes Conheceram</h2>
+          {canaisAquisicao.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={canaisAquisicao} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="canal" tick={{ fontSize: 12 }} width={110} />
+                <Tooltip formatter={(v) => `${v} vendas`} />
+                <Bar dataKey="total" radius={[0, 6, 6, 0]}>
+                  {canaisAquisicao.map((_, idx) => (
+                    <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Tabela comparativa entre lojas */}

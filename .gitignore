@@ -32,3 +32,4 @@ next-env.d.ts
 # dados importados
 scripts/dados/*.csv
 scripts/dados/*.xlsx
+.import-tmp/

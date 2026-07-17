@@ -22,7 +22,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [form, setForm] = useState({
     codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
     lucro_final: 0, data_venda: getLocalDateString(),
-    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: ''
+    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: ''
   });
   const [itens, setItens] = useState<any[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -30,7 +30,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean; lado: string; medida_esquerdo: string; medida_direito: string }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo: '', medida_direito: '' });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -50,11 +50,12 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         data_venda: venda.data_venda?.split('T')[0] || new Date().toISOString().split('T')[0],
         situacao: venda.situacao || 'Finalizada',
         tipo_pagamento: venda.tipo_pagamento || 'À Vista',
-        observacao: venda.observacao || ''
+        observacao: venda.observacao || '',
+        como_conheceu: (venda as any).como_conheceu || ''
       });
       carregarItens(venda.id);
     } else {
-      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '' });
+      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: '' });
       setItens([]);
     }
   }, [venda, isOpen]);
@@ -104,9 +105,17 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     return itens.filter(item => item.garantia).reduce((acc, item) => acc + item.quantidade, 0);
   };
 
+  const ehAlinhamento = (nome?: string) => (nome || '').toLowerCase().includes('alinhamento');
+  const ehCambagem = (nome?: string) => (nome || '').toLowerCase().includes('cambagem');
+  const precisaLado = (nome?: string) => ehAlinhamento(nome) || ehCambagem(nome);
+
   const adicionarItem = () => {
     if (!novoItem.produto_id) { toast.error('Selecione um produto'); return; }
     const prod = produtos.find(p => p.id === Number(novoItem.produto_id));
+    const comLado = precisaLado(prod?.nome);
+    if (comLado && !novoItem.lado) { toast.error('Selecione o lado'); return; }
+    if (comLado && (novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_esquerdo) { toast.error('Informe a medida do lado esquerdo'); return; }
+    if (comLado && (novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && !novoItem.medida_direito) { toast.error('Informe a medida do lado direito'); return; }
     const quantidade = Number(novoItem.quantidade) || 1;
     const precoUnitario = novoItem.preco_unitario || prod?.preco_venda || 0;
     const desconto = novoItem.desconto || 0;
@@ -118,9 +127,12 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       desconto,
       subtotal: novoItem.garantia ? 0 : Math.max(0, quantidade * precoUnitario - desconto),
       produto_nome: prod?.nome,
-      garantia: novoItem.garantia
+      garantia: novoItem.garantia,
+      lado: comLado ? novoItem.lado : undefined,
+      medida_esquerdo: comLado && novoItem.medida_esquerdo ? parseFloat(novoItem.medida_esquerdo) : undefined,
+      medida_direito: comLado && novoItem.medida_direito ? parseFloat(novoItem.medida_direito) : undefined
     }]);
-    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false });
+    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo: '', medida_direito: '' });
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -210,6 +222,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (itens.length === 0) { toast.error('Adicione pelo menos um item à venda'); return; }
     if (!form.loja_id) { toast.error('Selecione a loja'); return; }
     if (!form.vendedor_id) { toast.error('Selecione o vendedor'); return; }
+    if (!form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
+    if (!form.cliente_id) { toast.error('Selecione o cliente'); return; }
     setLoading(true);
 
     try {
@@ -225,6 +239,29 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         valor_total: total,
         lucro_final: lucro,
         lucro_parcial: lucro,
+      };
+
+      const notificarVendaFinalizada = async (vendaId: number) => {
+        const clienteNome = clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente';
+        const lojaNome = lojas.find(l => l.id === lojaId)?.nome || 'Loja';
+        const vendedorNome = vendedores.find(v => v.id === parseInt(form.vendedor_id))?.nome;
+        const mensagemNotificacao = `${lojaNome}: ${clienteNome} - ${formatMoney(total)}${vendedorNome ? ` (vendedor: ${vendedorNome})` : ''}`;
+
+        // Falhas aqui não devem impedir a venda, mas não podem mais passar em silêncio
+        const { error: erroNotificacao } = await supabase.from('notificacoes').insert([{
+          tipo: 'venda',
+          titulo: 'Nova venda registrada',
+          mensagem: mensagemNotificacao,
+          loja_id: lojaId,
+          referencia_id: vendaId,
+        }]);
+        if (erroNotificacao) console.error('Falha ao criar notificação da venda:', erroNotificacao);
+
+        supabase.functions.invoke('send-push', {
+          body: { titulo: 'Nova venda registrada', mensagem: mensagemNotificacao, url: '/vendas' },
+        }).then(({ error }) => {
+          if (error) console.error('Falha ao enviar push da venda:', error);
+        }).catch((err) => console.error('Falha ao enviar push da venda:', err));
       };
 
       if (venda) {
@@ -247,6 +284,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           descricao: `Venda #${form.codigo || venda.id} - ${clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente'}`,
         }).eq('referencia_id', venda.id).eq('categoria', 'Venda');
 
+        // A venda estava em aberto/andamento e passou a Finalizada agora: notifica como se fosse nova
+        if (venda.situacao !== 'Finalizada' && form.situacao === 'Finalizada') {
+          await notificarVendaFinalizada(venda.id);
+        }
+
         toast.success('Venda atualizada!');
       } else {
         const { data, error } = await supabase.from('vendas').insert([vendaData]).select();
@@ -257,7 +299,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           await supabase.from('vendas_itens').insert(itens.map(i => ({
             venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
-            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, subtotal: i.subtotal
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, medida_esquerdo: i.medida_esquerdo ?? null, medida_direito: i.medida_direito ?? null, subtotal: i.subtotal
           })));
 
           await deduzirEstoque(lojaId, vendaId);
@@ -273,6 +315,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             categoria: 'Venda',
             referencia_id: vendaId,
           }]);
+
+          await notificarVendaFinalizada(vendaId);
         }
         toast.success('Venda registrada!');
       }
@@ -290,13 +334,15 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     <Modal isOpen={isOpen} onClose={onClose} title={venda ? 'Editar Venda' : 'Nova Venda'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Input label="Código" value={form.codigo} onChange={handleChange} name="codigo" placeholder="Código da venda" />
+          <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
+            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }]}
+            placeholder="Selecione" />
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
             options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
           <div className="md:col-span-2">
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <SearchSelect label="Cliente" value={form.cliente_id}
+                <SearchSelect label="Cliente *" value={form.cliente_id}
                   onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val.toString() }))}
                   options={clientes.map(c => ({ value: c.id, label: c.nome }))}
                   placeholder="Digite o nome do cliente..." />
@@ -339,7 +385,16 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             <div className="mb-4 space-y-2">
               {itens.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="flex-1 text-sm font-medium text-gray-700">{item.produto_nome || `Produto #${item.produto_id}`}</span>
+                  <span className="flex-1 text-sm font-medium text-gray-700">
+                    {item.produto_nome || `Produto #${item.produto_id}`}
+                    {item.lado && (
+                      <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                        {item.lado}
+                        {item.medida_esquerdo != null && ` | Esq: ${item.medida_esquerdo}`}
+                        {item.medida_direito != null && ` | Dir: ${item.medida_direito}`}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-sm text-gray-500">Qtd: {item.quantidade}</span>
                   {item.desconto > 0 && (
                     <span className="text-sm text-red-500 text-xs">Desconto: -{formatMoney(item.desconto)}</span>
@@ -360,8 +415,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
-              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0 });
-            }} options={produtos.map(p => ({ value: p.id, label: `${p.nome} - ${formatMoney(p.preco_venda || 0)}` }))}
+              setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0, lado: '', medida_esquerdo: '', medida_direito: '' });
+            }} options={produtos.map(p => ({ value: p.id, label: p.nome }))}
               placeholder="Digite o nome do produto..." />
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
               onChange={(e) => {
@@ -378,6 +433,23 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
               onChange={(e) => setNovoItem({ ...novoItem, desconto: parseInt(e.target.value, 10) || 0 })} step="1" min={0} />
             <Button type="button" onClick={adicionarItem} variant="success" className="h-[42px] mt-6">+ Adicionar</Button>
           </div>
+
+          {precisaLado(produtos.find(p => p.id === Number(novoItem.produto_id))?.nome) && (
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
+              <Select label="Lado *" value={novoItem.lado}
+                onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value, medida_esquerdo: '', medida_direito: '' })}
+                options={[{ value: 'Esquerdo', label: 'Esquerdo' }, { value: 'Direito', label: 'Direito' }, { value: 'Esquerdo e Direito', label: 'Esquerdo e Direito' }]}
+                placeholder="Selecione o lado" />
+              {(novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && (
+                <Input label="Medida Esquerdo *" type="number" step="0.01" value={novoItem.medida_esquerdo}
+                  onChange={(e) => setNovoItem({ ...novoItem, medida_esquerdo: e.target.value })} placeholder="Medida" />
+              )}
+              {(novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && (
+                <Input label="Medida Direito *" type="number" step="0.01" value={novoItem.medida_direito}
+                  onChange={(e) => setNovoItem({ ...novoItem, medida_direito: e.target.value })} placeholder="Medida" />
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 mb-3 bg-white p-3 rounded-lg border border-gray-200">
             <input type="checkbox" checked={novoItem.garantia || false}
@@ -430,19 +502,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
                   placeholder="Nome do cliente" autoFocus />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                  <input type="text" value={novoCliente.telefone} onChange={(e) => setNovoCliente({ ...novoCliente, telefone: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                    placeholder="(11) 0000-0000" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
-                  <input type="text" value={novoCliente.celular} onChange={(e) => setNovoCliente({ ...novoCliente, celular: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                    placeholder="(11) 90000-0000" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                <input type="text" value={novoCliente.celular} onChange={(e) => setNovoCliente({ ...novoCliente, celular: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                  placeholder="(11) 90000-0000" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ</label>

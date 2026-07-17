@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS colaboradores (
   telefone VARCHAR(20),
   comissao_percentual DECIMAL(5,2) DEFAULT 0,
   ativo BOOLEAN DEFAULT TRUE,
+  notificar_vendas BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -222,6 +223,60 @@ CREATE TABLE IF NOT EXISTS movimentacao_estoque (
   referencia_id INTEGER,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 16. TABELA DE NOTIFICAÇÕES
+CREATE TABLE IF NOT EXISTS notificacoes (
+  id SERIAL PRIMARY KEY,
+  tipo VARCHAR(30) DEFAULT 'venda',
+  titulo VARCHAR(200) NOT NULL,
+  mensagem TEXT,
+  loja_id INTEGER REFERENCES lojas(id),
+  referencia_id INTEGER,
+  lida BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE notificacoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuários autenticados podem ver notificações"
+  ON notificacoes FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Usuários autenticados podem criar notificações"
+  ON notificacoes FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Usuários autenticados podem atualizar notificações"
+  ON notificacoes FOR UPDATE
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Usuários autenticados podem excluir notificações"
+  ON notificacoes FOR DELETE
+  TO authenticated
+  USING (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE notificacoes;
+
+-- 17. TABELA DE INSCRIÇÕES DE PUSH (notificações no celular)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id SERIAL PRIMARY KEY,
+  colaborador_id INTEGER REFERENCES colaboradores(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuários autenticados podem gerenciar suas inscrições push"
+  ON push_subscriptions FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- ============================================================
 -- ÍNDICES PARA PERFORMANCE
