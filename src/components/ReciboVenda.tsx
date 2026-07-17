@@ -60,12 +60,28 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         {/* Estilos de impressão embutidos */}
         <style>{`
           @media print {
-            body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
-            .print-area { box-shadow: none !important; border-radius: 0 !important; padding: 20px !important; max-width: 100% !important; }
+            .print-area { box-shadow: none !important; border-radius: 0 !important; padding: 12px !important; max-width: 100% !important; font-size: 13px !important; }
             .recibo-print-wrapper { position: static !important; overflow: visible !important; background: none !important; padding: 0 !important; z-index: auto !important; }
-            @page { margin: 15mm; size: A4 portrait; }
+            @page { margin: 10mm; size: A4 portrait; }
             .print-break-inside { break-inside: avoid; page-break-inside: avoid; }
+            .print-area .mb-6 { margin-bottom: 8px !important; }
+            .print-area .gap-6 { gap: 8px !important; }
+            .print-area .gap-4 { gap: 6px !important; }
+            .print-area .p-8 { padding: 10px !important; }
+            .print-area .p-5 { padding: 8px !important; }
+            .print-area .p-4 { padding: 6px !important; }
+            .print-area .p-3 { padding: 5px !important; }
+            .print-area .pb-6 { padding-bottom: 8px !important; }
+            .print-area .pt-4 { padding-top: 6px !important; }
+            .print-area .mt-3 { margin-top: 4px !important; }
+            .print-area .mt-4 { margin-top: 6px !important; }
+            .print-area th, .print-area td { padding-top: 4px !important; padding-bottom: 4px !important; }
+            .print-area .text-3xl { font-size: 18px !important; }
+            .print-area .text-lg { font-size: 14px !important; }
+            .print-area .text-sm { font-size: 11px !important; }
+            .print-area .text-xs { font-size: 10px !important; }
           }
         `}</style>
 
