@@ -63,6 +63,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
             body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
             .print-area { box-shadow: none !important; border-radius: 0 !important; padding: 20px !important; max-width: 100% !important; }
+            .recibo-print-wrapper { position: static !important; overflow: visible !important; background: none !important; padding: 0 !important; z-index: auto !important; }
             @page { margin: 15mm; size: A4 portrait; }
             .print-break-inside { break-inside: avoid; page-break-inside: avoid; }
           }

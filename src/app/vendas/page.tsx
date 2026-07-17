@@ -229,6 +229,7 @@ export default function VendasPage() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar user={user} onLogout={handleLogout} />
       <main className="flex-1 min-w-0 p-4 pt-20 md:p-8">
+        <div className="no-print">
         <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">💰 Vendas</h1>
@@ -324,13 +325,14 @@ export default function VendasPage() {
             </table>
           </div>
         </div>
+        </div>
 
         <FormVenda isOpen={showForm} onClose={() => { setShowForm(false); setEditingVenda(null); }}
           onSaved={carregarVendas} venda={editingVenda} />
 
         {/* Modal do Recibo */}
         {showRecibo && reciboData && (
-          <div className="fixed inset-0 bg-black/60 z-40 overflow-y-auto py-10">
+          <div className="recibo-print-wrapper fixed inset-0 bg-black/60 z-40 overflow-y-auto py-10">
             <ReciboVenda
               venda={reciboData}
               itens={reciboItens}
