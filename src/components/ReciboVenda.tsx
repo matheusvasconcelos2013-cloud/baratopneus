@@ -222,9 +222,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
                     {item.produto_nome || item.produtos?.nome || `Produto #${item.produto_id}`}
                     {item.lado && (
                       <span className="ml-2 text-xs font-normal text-blue-600">
-                        ({item.lado}
-                        {item.medida_esquerdo != null && ` - Esq: ${item.medida_esquerdo}`}
-                        {item.medida_direito != null && ` - Dir: ${item.medida_direito}`})
+                        ({item.lado})
                       </span>
                     )}
                   </td>

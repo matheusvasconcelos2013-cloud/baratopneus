@@ -96,8 +96,10 @@ export interface VendaItem {
   desconto?: number;
   garantia?: boolean;
   lado?: string;
-  medida_esquerdo?: number;
-  medida_direito?: number;
+  medida_esquerdo_antes?: number;
+  medida_esquerdo_depois?: number;
+  medida_direito_antes?: number;
+  medida_direito_depois?: number;
   loja_id?: number; // loja física de onde sai o estoque deste item, se diferente da loja da venda
   subtotal: number;
 }
