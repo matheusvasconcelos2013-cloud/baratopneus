@@ -445,27 +445,33 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           </div>
 
           {precisaLado(produtos.find(p => p.id === Number(novoItem.produto_id))?.nome) && (
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-2">
-              <Select label="Lado *" value={novoItem.lado}
-                onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value, medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '' })}
-                options={[{ value: 'Esquerdo', label: 'Esquerdo' }, { value: 'Direito', label: 'Direito' }, { value: 'Esquerdo e Direito', label: 'Esquerdo e Direito' }]}
-                placeholder="Selecione o lado" />
-              {(novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && (
-                <>
+            <div className="mb-4">
+              <div className="mb-2">
+                <Select label="Lado *" value={novoItem.lado}
+                  onChange={(e) => setNovoItem({ ...novoItem, lado: e.target.value, medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '' })}
+                  options={[{ value: 'Esquerdo', label: 'Esquerdo' }, { value: 'Direito', label: 'Direito' }, { value: 'Esquerdo e Direito', label: 'Esquerdo e Direito' }]}
+                  placeholder="Selecione o lado" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                {(novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && (
                   <Input label="Esquerdo Antes *" type="number" step="0.01" value={novoItem.medida_esquerdo_antes}
                     onChange={(e) => setNovoItem({ ...novoItem, medida_esquerdo_antes: e.target.value })} placeholder="Medida" />
-                  <Input label="Esquerdo Depois *" type="number" step="0.01" value={novoItem.medida_esquerdo_depois}
-                    onChange={(e) => setNovoItem({ ...novoItem, medida_esquerdo_depois: e.target.value })} placeholder="Medida" />
-                </>
-              )}
-              {(novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && (
-                <>
+                )}
+                {(novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && (
                   <Input label="Direito Antes *" type="number" step="0.01" value={novoItem.medida_direito_antes}
                     onChange={(e) => setNovoItem({ ...novoItem, medida_direito_antes: e.target.value })} placeholder="Medida" />
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && (
+                  <Input label="Esquerdo Depois *" type="number" step="0.01" value={novoItem.medida_esquerdo_depois}
+                    onChange={(e) => setNovoItem({ ...novoItem, medida_esquerdo_depois: e.target.value })} placeholder="Medida" />
+                )}
+                {(novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && (
                   <Input label="Direito Depois *" type="number" step="0.01" value={novoItem.medida_direito_depois}
                     onChange={(e) => setNovoItem({ ...novoItem, medida_direito_depois: e.target.value })} placeholder="Medida" />
-                </>
-              )}
+                )}
+              </div>
             </div>
           )}
 
