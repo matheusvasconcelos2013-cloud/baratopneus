@@ -146,7 +146,7 @@ export default function DashboardPage() {
 
       const canaisTmp: Record<string, number> = {};
       (vendasData || []).forEach((v: any) => {
-        if (!v.como_conheceu) return;
+        if (!v.como_conheceu || v.como_conheceu === '-') return;
         canaisTmp[v.como_conheceu] = (canaisTmp[v.como_conheceu] || 0) + 1;
       });
       setCanaisAquisicao(

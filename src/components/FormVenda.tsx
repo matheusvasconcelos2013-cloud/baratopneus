@@ -342,7 +342,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
-            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }]}
+            disabled={itens.some(i => i.garantia) || novoItem.garantia}
+            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }, { value: '-', label: 'Troca em garantia (não conta na análise)' }]}
             placeholder="Selecione" />
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
             options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
@@ -460,7 +461,14 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           <div className="flex items-center gap-2 mb-3 bg-white p-3 rounded-lg border border-gray-200">
             <input type="checkbox" checked={novoItem.garantia || false}
-              onChange={(e) => setNovoItem({ ...novoItem, garantia: e.target.checked })}
+              onChange={(e) => {
+                setNovoItem({ ...novoItem, garantia: e.target.checked });
+                if (e.target.checked) {
+                  setForm(prev => ({ ...prev, como_conheceu: '-' }));
+                } else if (!itens.some(i => i.garantia)) {
+                  setForm(prev => ({ ...prev, como_conheceu: prev.como_conheceu === '-' ? '' : prev.como_conheceu }));
+                }
+              }}
               className="w-4 h-4 text-blue-600 rounded" />
             <label className="text-sm text-gray-600">Garantia</label>
           </div>
