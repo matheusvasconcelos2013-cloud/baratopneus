@@ -210,7 +210,8 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         {/* Tabela de Itens */}
         <div className="mb-6 print-break-inside">
           <h3 className="text-lg font-bold text-gray-800 mb-3">📦 Itens da Venda</h3>
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[500px]">
             <thead>
               <tr className="bg-gray-800 text-white">
                 <th className="text-left py-3 px-4 text-sm font-semibold rounded-tl-xl">Código</th>
@@ -243,6 +244,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Totais */}
