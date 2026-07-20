@@ -313,7 +313,7 @@ export default function DashboardPage() {
       <main className="flex-1 min-w-0 p-4 pt-20 md:p-8">
         <header className="flex flex-wrap justify-center sm:justify-between items-center gap-4 mb-8 text-center sm:text-left">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">📊 Dashboard Administrativo</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Dashboard Administrativo</h1>
             <p className="text-gray-500 mt-1 capitalize">{labelPeriodo()}</p>
           </div>
         </header>

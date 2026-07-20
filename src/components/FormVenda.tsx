@@ -97,8 +97,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   };
 
   const carregarItens = async (vendaId: number) => {
-    const { data } = await supabase.from('vendas_itens').select('*').eq('venda_id', vendaId);
-    if (data) setItens(data);
+    const { data } = await supabase.from('vendas_itens').select('*, produto:produtos(nome)').eq('venda_id', vendaId);
+    if (data) setItens(data.map((item: any) => ({ ...item, produto_nome: item.produto?.nome })));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -342,7 +342,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
-            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }]}
+            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }]}
             placeholder="Selecione" />
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
             options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
