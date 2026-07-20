@@ -99,7 +99,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          {recebeNotificacoes && <NotificationBell userEmail={user?.email} />}
+          {recebeNotificacoes && <NotificationBell userEmail={user?.email} align="left" />}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
