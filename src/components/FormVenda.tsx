@@ -343,7 +343,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
             disabled={itens.some(i => i.garantia) || novoItem.garantia}
-            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }, { value: '-', label: 'Troca em garantia (não conta na análise)' }]}
+            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }, { value: '-', label: '-' }]}
             placeholder="Selecione" />
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
             options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
