@@ -6,7 +6,7 @@ import Modal from './Modal';
 import SearchSelect from './SearchSelect';
 import { Input, Select, TextArea, Button, formatMoney } from './FormElements';
 import toast from 'react-hot-toast';
-import { getLocalDateString, formatDateTimeForDB } from '@/lib/dateUtils';
+import { getLocalDateString } from '@/lib/dateUtils';
 
 interface FormRemessaProps {
   isOpen: boolean;
@@ -131,23 +131,19 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
       const lojaId = parseInt(form.loja_id);
 
       if (remessa) {
-        // Edição: reverte estoque antigo
+        // Edição: reverte estoque antigo via RPC atômica (ajustar_estoque)
         const itensAntigos = await supabase.from('remessas_itens').select('*').eq('remessa_id', remessa.id);
         if (itensAntigos.data) {
           for (const item of itensAntigos.data) {
-            const estoqueAtual = await supabase
-              .from('estoque_lojas')
-              .select('id, quantidade')
-              .eq('produto_id', item.produto_id)
-              .eq('loja_id', lojaId)
-              .maybeSingle();
-
-            if (estoqueAtual.data) {
-              await supabase
-                .from('estoque_lojas')
-                .update({ quantidade: Math.max(0, estoqueAtual.data.quantidade - item.quantidade) })
-                .eq('id', estoqueAtual.data.id);
-            }
+            const { error: erroEstorno } = await supabase.rpc('ajustar_estoque', {
+              p_produto_id: item.produto_id,
+              p_loja_id: lojaId,
+              p_delta: -Math.abs(item.quantidade),
+              p_tipo: 'Saída',
+              p_motivo: 'Estorno de Remessa (edição)',
+              p_referencia_id: remessa.id,
+            });
+            if (erroEstorno) throw erroEstorno;
           }
         }
 
@@ -201,39 +197,17 @@ export default function FormRemessa({ isOpen, onClose, onSaved, remessa }: FormR
     }
   };
 
+  // Ajuste de estoque via RPC atômica (ajustar_estoque, definida em supabase/schema.sql).
   const adicionarAoEstoque = async (lojaId: number, produtoId: number, quantidade: number, remessaId: number) => {
-    // Busca estoque atual
-    const { data: estoqueAtual } = await supabase
-      .from('estoque_lojas')
-      .select('id, quantidade')
-      .eq('produto_id', produtoId)
-      .eq('loja_id', lojaId)
-      .maybeSingle();
-
-    if (estoqueAtual) {
-      // Atualiza quantidade existente
-      await supabase
-        .from('estoque_lojas')
-        .update({ quantidade: estoqueAtual.quantidade + quantidade, updated_at: formatDateTimeForDB() })
-        .eq('id', estoqueAtual.id);
-    } else {
-      // Cria novo registro
-      await supabase.from('estoque_lojas').insert([{
-        produto_id: produtoId,
-        loja_id: lojaId,
-        quantidade: quantidade,
-      }]);
-    }
-
-    // Registra na movimentação
-    await supabase.from('movimentacao_estoque').insert([{
-      produto_id: produtoId,
-      loja_id: lojaId,
-      tipo: 'Entrada',
-      quantidade: quantidade,
-      motivo: 'Remessa',
-      referencia_id: remessaId,
-    }]);
+    const { error } = await supabase.rpc('ajustar_estoque', {
+      p_produto_id: produtoId,
+      p_loja_id: lojaId,
+      p_delta: Math.abs(quantidade),
+      p_tipo: 'Entrada',
+      p_motivo: 'Remessa',
+      p_referencia_id: remessaId,
+    });
+    if (error) throw error;
   };
 
   return (

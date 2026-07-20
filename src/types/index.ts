@@ -100,24 +100,6 @@ export interface VendaItem {
   subtotal: number;
 }
 
-export interface OrdemServico {
-  id: number;
-  loja_id?: number;
-  codigo?: string;
-  cliente_id?: number;
-  veiculo_id?: number;
-  tecnico_id?: number;
-  tecnico2_id?: number;
-  valor_total?: number;
-  lucro_parcial?: number;
-  lucro_final?: number;
-  data_os?: string;
-  status?: string;
-  pagamento?: string;
-  observacao?: string;
-  created_at: string;
-}
-
 export interface Colaborador {
   id: number;
   loja_id?: number;

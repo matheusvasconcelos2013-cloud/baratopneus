@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Modal from './Modal';
 import { Input, Select, TextArea, Button, formatMoney } from './FormElements';
 import toast from 'react-hot-toast';
-import { getLocalDateString, formatDateTimeForDB } from '@/lib/dateUtils';
+import { getLocalDateString } from '@/lib/dateUtils';
 import { Produto, Colaborador, Cliente, Venda, VendaItem } from '@/types';
 
 interface FormVendaProps {
@@ -160,37 +160,20 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
 
+  // Ajuste de estoque via RPC atômica (ajustar_estoque, definida em supabase/schema.sql).
+  // Substitui o padrão antigo "ler quantidade -> calcular -> gravar", que perdia
+  // atualizações quando duas vendas do mesmo produto/loja aconteciam ao mesmo tempo.
   const deduzirEstoque = async (lojaId: number, vendaId: number) => {
     for (const item of itens) {
-      const { data: estoqueAtual } = await supabase
-        .from('estoque_lojas')
-        .select('id, quantidade')
-        .eq('produto_id', item.produto_id)
-        .eq('loja_id', lojaId)
-        .maybeSingle();
-
-      if (estoqueAtual) {
-        const novaQtd = Math.max(0, estoqueAtual.quantidade - item.quantidade);
-        await supabase
-          .from('estoque_lojas')
-          .update({ quantidade: novaQtd, updated_at: formatDateTimeForDB() })
-          .eq('id', estoqueAtual.id);
-      } else {
-        await supabase.from('estoque_lojas').insert([{
-          produto_id: item.produto_id,
-          loja_id: lojaId,
-          quantidade: 0,
-        }]);
-      }
-
-      await supabase.from('movimentacao_estoque').insert([{
-        produto_id: item.produto_id,
-        loja_id: lojaId,
-        tipo: 'Saída',
-        quantidade: item.quantidade,
-        motivo: item.garantia ? 'Garantia' : 'Venda',
-        referencia_id: vendaId,
-      }]);
+      const { error } = await supabase.rpc('ajustar_estoque', {
+        p_produto_id: item.produto_id,
+        p_loja_id: lojaId,
+        p_delta: -Math.abs(item.quantidade),
+        p_tipo: 'Saída',
+        p_motivo: item.garantia ? 'Garantia' : 'Venda',
+        p_referencia_id: vendaId,
+      });
+      if (error) throw error;
     }
   };
 
@@ -200,19 +183,15 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (!itensAntigos) return;
 
     for (const item of itensAntigos) {
-      const { data: estoqueAtual } = await supabase
-        .from('estoque_lojas')
-        .select('id, quantidade')
-        .eq('produto_id', item.produto_id)
-        .eq('loja_id', lojaId)
-        .maybeSingle();
-
-      if (estoqueAtual) {
-        await supabase
-          .from('estoque_lojas')
-          .update({ quantidade: estoqueAtual.quantidade + item.quantidade, updated_at: new Date().toISOString() })
-          .eq('id', estoqueAtual.id);
-      }
+      const { error } = await supabase.rpc('ajustar_estoque', {
+        p_produto_id: item.produto_id,
+        p_loja_id: lojaId,
+        p_delta: Math.abs(item.quantidade),
+        p_tipo: 'Entrada',
+        p_motivo: 'Estorno de Venda (edição)',
+        p_referencia_id: vendaId,
+      });
+      if (error) throw error;
     }
   };
 

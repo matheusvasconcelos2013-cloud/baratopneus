@@ -127,8 +127,17 @@ CREATE TABLE IF NOT EXISTS colaboradores (
   comissao_percentual DECIMAL(5,2) DEFAULT 0,
   ativo BOOLEAN DEFAULT TRUE,
   notificar_vendas BOOLEAN DEFAULT FALSE,
+  email VARCHAR(200),
+  is_admin BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Colunas abaixo já existiam no banco em produção (login por e-mail e
+-- flag de administrador), mas não estavam registradas neste script.
+-- Adicionadas aqui como ALTER para manter este arquivo idempotente
+-- caso as colunas já existam.
+ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS email VARCHAR(200);
+ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 
 -- 10. TABELA DE VENDAS
 CREATE TABLE IF NOT EXISTS vendas (
@@ -162,40 +171,49 @@ CREATE TABLE IF NOT EXISTS vendas_itens (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 12. TABELA DE ORDENS DE SERVIÇO
-CREATE TABLE IF NOT EXISTS ordens_servico (
+-- 12. TABELA DE ESTOQUE POR LOJA
+-- Cada loja controla seu próprio saldo do mesmo produto (produtos.quantidade_estoque
+-- ficou como campo legado/consolidado; o saldo real e por loja mora aqui).
+CREATE TABLE IF NOT EXISTS estoque_lojas (
+  id SERIAL PRIMARY KEY,
+  produto_id INTEGER REFERENCES produtos(id) ON DELETE CASCADE,
+  loja_id INTEGER REFERENCES lojas(id) ON DELETE CASCADE,
+  quantidade DECIMAL(10,2) NOT NULL DEFAULT 0,
+  estoque_minimo DECIMAL(10,2) DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Garante no máximo um saldo por produto+loja. Necessário para o
+-- UPSERT atômico usado pela função ajustar_estoque() (ver mais abaixo).
+-- Antes de aplicar em um banco já existente, verifique duplicados com:
+--   SELECT produto_id, loja_id, COUNT(*) FROM estoque_lojas
+--   GROUP BY produto_id, loja_id HAVING COUNT(*) > 1;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_estoque_lojas_produto_loja
+  ON estoque_lojas(produto_id, loja_id);
+
+-- 13. TABELA DE REMESSAS (entrada de mercadoria de fornecedores)
+CREATE TABLE IF NOT EXISTS remessas (
   id SERIAL PRIMARY KEY,
   loja_id INTEGER REFERENCES lojas(id),
-  codigo VARCHAR(50),
-  cliente_id INTEGER REFERENCES clientes(id),
-  veiculo_id INTEGER REFERENCES veiculos(id),
-  tecnico_id INTEGER REFERENCES colaboradores(id),
-  tecnico2_id INTEGER REFERENCES colaboradores(id),
-  valor_total DECIMAL(10,2) DEFAULT 0,
-  lucro_parcial DECIMAL(10,2) DEFAULT 0,
-  lucro_final DECIMAL(10,2) DEFAULT 0,
-  data_os DATE DEFAULT CURRENT_DATE,
-  status VARCHAR(30) DEFAULT 'Em Aberto' CHECK (status IN ('Finalizada', 'Cancelada', 'Em Aberto', 'Em Andamento', 'Atrasada')),
-  pagamento VARCHAR(30) DEFAULT 'Não Pago' CHECK (pagamento IN ('Pago', 'Não Pago', 'Pago Parc.')),
+  fornecedor_id INTEGER REFERENCES fornecedores(id),
+  data_entrada DATE DEFAULT CURRENT_DATE,
   observacao TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- 13. ITENS DA ORDEM DE SERVIÇO
-CREATE TABLE IF NOT EXISTS ordens_servico_itens (
+-- 14. ITENS DA REMESSA
+CREATE TABLE IF NOT EXISTS remessas_itens (
   id SERIAL PRIMARY KEY,
-  os_id INTEGER REFERENCES ordens_servico(id) ON DELETE CASCADE,
+  remessa_id INTEGER REFERENCES remessas(id) ON DELETE CASCADE,
   produto_id INTEGER REFERENCES produtos(id),
-  tipo VARCHAR(20) CHECK (tipo IN ('Produto', 'Serviço')),
   quantidade DECIMAL(10,2) DEFAULT 1,
-  preco_unitario DECIMAL(10,2) DEFAULT 0,
   preco_custo DECIMAL(10,2) DEFAULT 0,
-  subtotal DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 14. TABELA DE CONTAS FINANCEIRO
+-- 15. TABELA DE CONTAS FINANCEIRO
 CREATE TABLE IF NOT EXISTS contas_financeiro (
   id SERIAL PRIMARY KEY,
   loja_id INTEGER REFERENCES lojas(id),
@@ -285,19 +303,29 @@ CREATE INDEX IF NOT EXISTS idx_clientes_loja ON clientes(loja_id);
 CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
 CREATE INDEX IF NOT EXISTS idx_vendas_loja ON vendas(loja_id);
 CREATE INDEX IF NOT EXISTS idx_vendas_data ON vendas(data_venda);
-CREATE INDEX IF NOT EXISTS idx_os_loja ON ordens_servico(loja_id);
 CREATE INDEX IF NOT EXISTS idx_produtos_loja ON produtos(loja_id);
 CREATE INDEX IF NOT EXISTS idx_vendas_itens_venda ON vendas_itens(venda_id);
-CREATE INDEX IF NOT EXISTS idx_os_itens_os ON ordens_servico_itens(os_id);
 CREATE INDEX IF NOT EXISTS idx_veiculos_cliente ON veiculos(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_estoque_lojas_loja ON estoque_lojas(loja_id);
+CREATE INDEX IF NOT EXISTS idx_remessas_loja ON remessas(loja_id);
+CREATE INDEX IF NOT EXISTS idx_remessas_itens_remessa ON remessas_itens(remessa_id);
+CREATE INDEX IF NOT EXISTS idx_movimentacao_produto_loja ON movimentacao_estoque(produto_id, loja_id);
 
 -- ============================================================
 -- VIEWS ÚTEIS
 -- ============================================================
 
+-- Todas as views abaixo usam security_invoker = true: sem essa opção, uma
+-- view roda com o privilégio de quem a criou (SECURITY DEFINER implícito) e
+-- ignora completamente o RLS das tabelas de negócio — ou seja, qualquer
+-- usuário que a consultasse via API veria todos os dados de todas as
+-- lojas/vendedores, mesmo depois de habilitar RLS. Com security_invoker,
+-- a view respeita o RLS de quem está consultando.
+
 -- View: Vendas consolidadas por loja
-CREATE OR REPLACE VIEW vendas_por_loja AS
-SELECT 
+CREATE OR REPLACE VIEW vendas_por_loja
+WITH (security_invoker = true) AS
+SELECT
   l.id AS loja_id,
   l.nome AS loja_nome,
   COUNT(v.id) AS total_vendas,
@@ -310,11 +338,99 @@ GROUP BY l.id, l.nome
 ORDER BY l.nome;
 
 -- View: Dashboard do dono (todas as lojas)
-CREATE OR REPLACE VIEW dashboard_geral AS
+-- Obs: "Ordens de Serviço" foi removido do produto (não havia tela implementada),
+-- então o contador os_abertas saiu daqui junto com a tabela ordens_servico.
+CREATE OR REPLACE VIEW dashboard_geral
+WITH (security_invoker = true) AS
 SELECT
   (SELECT COUNT(*) FROM clientes WHERE status = 'Ativo') AS total_clientes_ativos,
   (SELECT COUNT(*) FROM vendas WHERE situacao = 'Finalizada') AS total_vendas,
   (SELECT COALESCE(SUM(valor_total), 0) FROM vendas WHERE situacao = 'Finalizada') AS faturamento_total,
   (SELECT COALESCE(SUM(lucro_final), 0) FROM vendas WHERE situacao = 'Finalizada') AS lucro_total,
-  (SELECT COUNT(*) FROM ordens_servico WHERE status = 'Em Aberto') AS os_abertas,
   (SELECT COUNT(*) FROM lojas) AS total_lojas;
+
+-- View: estoque atual por produto/loja, já com o flag de estoque baixo
+-- (existia em produção mas nunca tinha sido versionada aqui)
+CREATE OR REPLACE VIEW estoque_atual
+WITH (security_invoker = true) AS
+SELECT
+  p.id AS produto_id,
+  p.nome AS produto_nome,
+  p.codigo,
+  l.id AS loja_id,
+  l.nome AS loja_nome,
+  COALESCE(e.quantidade, 0) AS quantidade,
+  COALESCE(e.estoque_minimo, p.estoque_minimo, 0) AS estoque_minimo,
+  CASE WHEN COALESCE(e.quantidade, 0) <= COALESCE(e.estoque_minimo, p.estoque_minimo, 0)
+    THEN true ELSE false END AS estoque_baixo
+FROM produtos p
+CROSS JOIN lojas l
+LEFT JOIN estoque_lojas e ON e.produto_id = p.id AND e.loja_id = l.id
+ORDER BY l.nome, p.nome;
+
+-- View: relatório diário de vendas por loja (existia em produção mas
+-- nunca tinha sido versionada aqui)
+CREATE OR REPLACE VIEW relatorio_diario
+WITH (security_invoker = true) AS
+SELECT
+  v.data_venda,
+  l.nome AS loja_nome,
+  COUNT(v.id) AS total_vendas,
+  SUM(v.valor_total) AS faturamento,
+  SUM(v.lucro_final) AS lucro,
+  ROUND(SUM(v.valor_total) / NULLIF(COUNT(v.id), 0), 2) AS ticket_medio
+FROM vendas v
+JOIN lojas l ON l.id = v.loja_id
+GROUP BY v.data_venda, l.id, l.nome
+ORDER BY v.data_venda DESC, l.nome;
+
+-- ============================================================
+-- FUNÇÃO: BAIXA/ENTRADA DE ESTOQUE ATÔMICA
+-- ============================================================
+-- Centraliza todo ajuste de estoque (vendas, estornos, remessas) em uma
+-- única operação atômica, evitando a condição de corrida do padrão antigo
+-- "ler quantidade -> calcular no app -> gravar", que perde atualizações
+-- quando duas vendas do mesmo produto/loja acontecem ao mesmo tempo.
+--
+-- p_delta: positivo para entrada (remessa, estorno de venda),
+--          negativo para saída (venda, estorno de remessa).
+-- p_tipo/p_motivo/p_referencia_id: se p_tipo for informado, registra
+--          também o histórico em movimentacao_estoque na mesma transação.
+--
+-- SECURITY DEFINER: a função roda com os privilégios de quem a criou,
+-- então funciona mesmo depois de RLS ser habilitado nas tabelas de
+-- estoque (ver scripts/seguranca_rls.sql) — o controle de quem pode
+-- chamar a função fica no GRANT EXECUTE abaixo.
+CREATE OR REPLACE FUNCTION ajustar_estoque(
+  p_produto_id INTEGER,
+  p_loja_id INTEGER,
+  p_delta DECIMAL(10,2),
+  p_tipo VARCHAR(10) DEFAULT NULL,
+  p_motivo VARCHAR(200) DEFAULT NULL,
+  p_referencia_id INTEGER DEFAULT NULL
+) RETURNS DECIMAL(10,2)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_nova_quantidade DECIMAL(10,2);
+BEGIN
+  INSERT INTO estoque_lojas (produto_id, loja_id, quantidade, updated_at)
+  VALUES (p_produto_id, p_loja_id, GREATEST(0, p_delta), NOW())
+  ON CONFLICT (produto_id, loja_id)
+  DO UPDATE SET
+    quantidade = GREATEST(0, estoque_lojas.quantidade + p_delta),
+    updated_at = NOW()
+  RETURNING quantidade INTO v_nova_quantidade;
+
+  IF p_tipo IS NOT NULL THEN
+    INSERT INTO movimentacao_estoque (produto_id, loja_id, tipo, quantidade, motivo, referencia_id)
+    VALUES (p_produto_id, p_loja_id, p_tipo, ABS(p_delta), p_motivo, p_referencia_id);
+  END IF;
+
+  RETURN v_nova_quantidade;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION ajustar_estoque(INTEGER, INTEGER, DECIMAL, VARCHAR, VARCHAR, INTEGER) TO authenticated;

@@ -133,28 +133,20 @@ export default function VendasPage() {
       const lojaId = vendaRes.data.loja_id;
       const itens = itensRes.data;
 
-      // Devolve o estoque de cada item ao que era antes da venda
+      // Devolve o estoque de cada item ao que era antes da venda, via RPC
+      // atômica (ajustar_estoque) — evita a condição de corrida do antigo
+      // padrão "ler quantidade -> calcular -> gravar".
       for (const item of itens) {
         if (!item.produto_id) continue;
-        const estoqueAtual = await supabase
-          .from('estoque_lojas')
-          .select('id, quantidade')
-          .eq('produto_id', item.produto_id)
-          .eq('loja_id', lojaId)
-          .maybeSingle();
-
-        if (estoqueAtual.data) {
-          await supabase
-            .from('estoque_lojas')
-            .update({ quantidade: estoqueAtual.data.quantidade + item.quantidade })
-            .eq('id', estoqueAtual.data.id);
-        } else {
-          await supabase.from('estoque_lojas').insert([{
-            produto_id: item.produto_id,
-            loja_id: lojaId,
-            quantidade: item.quantidade,
-          }]);
-        }
+        const { error: erroEstoque } = await supabase.rpc('ajustar_estoque', {
+          p_produto_id: item.produto_id,
+          p_loja_id: lojaId,
+          p_delta: Math.abs(item.quantidade),
+          p_tipo: 'Entrada',
+          p_motivo: 'Estorno de Venda (exclusão)',
+          p_referencia_id: id,
+        });
+        if (erroEstoque) throw erroEstoque;
       }
 
       // Remove o histórico de movimentação de estoque gerado por essa venda

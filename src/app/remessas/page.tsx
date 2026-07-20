@@ -7,7 +7,6 @@ import Sidebar from '@/components/Sidebar';
 import FormRemessa from '@/components/FormRemessa';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
 import toast from 'react-hot-toast';
-import { formatDateTimeForDB } from '@/lib/dateUtils';
 
 interface RemessaRow {
   id: number;
@@ -98,31 +97,28 @@ export default function RemessasPage() {
       const lojaId = remessaRes.data.loja_id;
       const itens = itensRes.data;
 
-      // 2. Reverte o estoque de cada item
+      // 2. Reverte o estoque de cada item via RPC atômica (ajustar_estoque)
       for (const item of itens) {
-        const estoqueAtual = await supabase
-          .from('estoque_lojas')
-          .select('id, quantidade')
-          .eq('produto_id', item.produto_id)
-          .eq('loja_id', lojaId)
-          .maybeSingle();
-
-        if (estoqueAtual.data) {
-          // Subtrai a quantidade que tinha sido adicionada
-          const novaQtd = Math.max(0, estoqueAtual.data.quantidade - item.quantidade);
-          await supabase
-            .from('estoque_lojas')
-            .update({ quantidade: novaQtd, updated_at: formatDateTimeForDB() })
-            .eq('id', estoqueAtual.data.id);
-
-          // Remove da movimentacao_estoque
-          await supabase
-            .from('movimentacao_estoque')
-            .delete()
-            .eq('remessa_id', id)
-            .eq('produto_id', item.produto_id);
-        }
+        const { error: erroEstorno } = await supabase.rpc('ajustar_estoque', {
+          p_produto_id: item.produto_id,
+          p_loja_id: lojaId,
+          p_delta: -Math.abs(item.quantidade),
+          p_tipo: 'Saída',
+          p_motivo: 'Estorno de Remessa (exclusão)',
+          p_referencia_id: id,
+        });
+        if (erroEstorno) throw erroEstorno;
       }
+
+      // Remove o histórico de movimentação original desta remessa
+      // (Obs: antes este delete usava a coluna "remessa_id", que não existe
+      // em movimentacao_estoque — a coluna correta é "referencia_id" — então
+      // esse histórico nunca era de fato removido. Corrigido aqui.)
+      await supabase
+        .from('movimentacao_estoque')
+        .delete()
+        .eq('referencia_id', id)
+        .eq('motivo', 'Remessa');
 
       // 3. Deleta os itens da remessa
       await supabase.from('remessas_itens').delete().eq('remessa_id', id);
