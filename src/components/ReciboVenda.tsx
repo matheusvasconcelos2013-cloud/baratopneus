@@ -30,7 +30,13 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
       const elemento = document.getElementById('recibo-venda');
       if (!elemento) throw new Error('Recibo não encontrado');
 
-      const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      // Força a captura a simular a largura de um desktop (ativa o layout
+      // md: do Tailwind), para o PDF sair igual independente do dispositivo
+      // que gerou a impressão.
+      const canvas = await html2canvas(elemento, {
+        scale: 2, useCORS: true, backgroundColor: '#ffffff',
+        windowWidth: 1024, windowHeight: elemento.scrollHeight,
+      });
       const imgData = canvas.toDataURL('image/png');
 
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -83,20 +89,20 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
   return (
     <>
       {/* Botão de impressão (fora do print) */}
-      <div className="no-print fixed bottom-8 right-8 z-50 flex flex-col gap-3">
+      <div className="no-print fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 flex flex-col gap-2 md:gap-3">
         <button
           onClick={handlePrint}
           disabled={gerandoPdf}
-          className="bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-2xl hover:bg-blue-700 transition font-bold text-lg flex items-center gap-3 disabled:opacity-60"
+          className="bg-blue-600 text-white px-4 py-2.5 md:px-8 md:py-4 rounded-xl md:rounded-2xl shadow-2xl hover:bg-blue-700 transition font-bold text-sm md:text-lg flex items-center gap-2 md:gap-3 disabled:opacity-60"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          {gerandoPdf ? 'Gerando PDF...' : '🖨️ Imprimir Recibo'}
+          {gerandoPdf ? 'Gerando PDF...' : 'Imprimir Recibo'}
         </button>
         <button
           onClick={onClose}
-          className="bg-gray-200 text-gray-700 px-6 py-3 rounded-2xl hover:bg-gray-300 transition font-semibold"
+          className="bg-gray-200 text-gray-700 px-3 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl hover:bg-gray-300 transition font-semibold text-sm md:text-base"
         >
           Fechar
         </button>
