@@ -10,9 +10,18 @@ CREATE TABLE IF NOT EXISTS lojas (
   cidade VARCHAR(100),
   estado VARCHAR(50),
   telefone VARCHAR(20),
+  fisica BOOLEAN DEFAULT TRUE, -- FALSE para canais de venda sem loja física (ex: Shopee)
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE lojas ADD COLUMN IF NOT EXISTS fisica BOOLEAN DEFAULT TRUE;
+
+-- Canal "Shopee": faturamento das vendas do marketplace fica separado das
+-- lojas físicas; o estoque de cada item é debitado da loja física real
+-- via vendas_itens.loja_id (ver tabela 11 abaixo).
+INSERT INTO lojas (nome, cidade, fisica)
+SELECT 'Shopee', 'Online', FALSE
+WHERE NOT EXISTS (SELECT 1 FROM lojas WHERE nome = 'Shopee');
 
 -- 2. TABELA DE PERFIS (vincula o usuário do Auth com a loja)
 -- O id é UUID porque referencia auth.users do Supabase
@@ -167,9 +176,12 @@ CREATE TABLE IF NOT EXISTS vendas_itens (
   preco_custo DECIMAL(10,2) DEFAULT 0,
   desconto INTEGER DEFAULT 0,
   garantia BOOLEAN DEFAULT FALSE,
+  loja_id INTEGER REFERENCES lojas(id), -- loja física de onde sai o estoque deste item; se nulo, usa vendas.loja_id
   subtotal DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE vendas_itens ADD COLUMN IF NOT EXISTS loja_id INTEGER REFERENCES lojas(id);
+COMMENT ON COLUMN vendas_itens.loja_id IS 'Loja física de onde sai o estoque deste item. Se nulo, usa a loja da venda (vendas.loja_id) — comportamento padrão para vendas de balcão.';
 
 -- 12. TABELA DE ESTOQUE POR LOJA
 -- Cada loja controla seu próprio saldo do mesmo produto (produtos.quantidade_estoque

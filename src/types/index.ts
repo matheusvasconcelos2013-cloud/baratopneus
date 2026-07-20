@@ -9,6 +9,7 @@ export interface Loja {
   cidade?: string;
   estado?: string;
   telefone?: string;
+  fisica?: boolean; // false para canais de venda sem estoque próprio (ex: Shopee)
   created_at: string;
 }
 
@@ -97,6 +98,7 @@ export interface VendaItem {
   lado?: string;
   medida_esquerdo?: number;
   medida_direito?: number;
+  loja_id?: number; // loja física de onde sai o estoque deste item, se diferente da loja da venda
   subtotal: number;
 }
 

@@ -140,7 +140,7 @@ export default function VendasPage() {
         if (!item.produto_id) continue;
         const { error: erroEstoque } = await supabase.rpc('ajustar_estoque', {
           p_produto_id: item.produto_id,
-          p_loja_id: lojaId,
+          p_loja_id: item.loja_id ?? lojaId,
           p_delta: Math.abs(item.quantidade),
           p_tipo: 'Entrada',
           p_motivo: 'Estorno de Venda (exclusão)',

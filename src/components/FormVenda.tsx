@@ -163,11 +163,14 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   // Ajuste de estoque via RPC atômica (ajustar_estoque, definida em supabase/schema.sql).
   // Substitui o padrão antigo "ler quantidade -> calcular -> gravar", que perdia
   // atualizações quando duas vendas do mesmo produto/loja aconteciam ao mesmo tempo.
+  // lojaId é a loja da venda (usada para faturamento). Quando o item tem
+  // sua própria loja_id (ex: vendas da Shopee, onde cada item pode sair de
+  // uma loja física diferente da loja de faturamento), ela tem prioridade.
   const deduzirEstoque = async (lojaId: number, vendaId: number) => {
     for (const item of itens) {
       const { error } = await supabase.rpc('ajustar_estoque', {
         p_produto_id: item.produto_id,
-        p_loja_id: lojaId,
+        p_loja_id: item.loja_id ?? lojaId,
         p_delta: -Math.abs(item.quantidade),
         p_tipo: 'Saída',
         p_motivo: item.garantia ? 'Garantia' : 'Venda',
@@ -185,7 +188,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     for (const item of itensAntigos) {
       const { error } = await supabase.rpc('ajustar_estoque', {
         p_produto_id: item.produto_id,
-        p_loja_id: lojaId,
+        p_loja_id: item.loja_id ?? lojaId,
         p_delta: Math.abs(item.quantidade),
         p_tipo: 'Entrada',
         p_motivo: 'Estorno de Venda (edição)',
@@ -278,7 +281,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         await supabase.from('vendas_itens').delete().eq('venda_id', venda.id);
         await supabase.from('vendas_itens').insert(itens.map(i => ({
           venda_id: venda.id, produto_id: i.produto_id, quantidade: i.quantidade,
-          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, subtotal: i.subtotal
+          preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, loja_id: i.loja_id ?? null, subtotal: i.subtotal
         })));
 
         await deduzirEstoque(lojaId, venda.id);
@@ -303,7 +306,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
           await supabase.from('vendas_itens').insert(itens.map(i => ({
             venda_id: vendaId, produto_id: i.produto_id, quantidade: i.quantidade,
-            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, medida_esquerdo: i.medida_esquerdo ?? null, medida_direito: i.medida_direito ?? null, subtotal: i.subtotal
+            preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, medida_esquerdo: i.medida_esquerdo ?? null, medida_direito: i.medida_direito ?? null, loja_id: i.loja_id ?? null, subtotal: i.subtotal
           })));
 
           await deduzirEstoque(lojaId, vendaId);
