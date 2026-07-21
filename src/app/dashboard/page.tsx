@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [canaisAquisicao, setCanaisAquisicao] = useState<{ canal: string; total: number }[]>([]);
   const [produtosMaisVendidos, setProdutosMaisVendidos] = useState<{ nome: string; quantidade: number; faturamento: number }[]>([]);
   const [faturamentoDetalhado, setFaturamentoDetalhado] = useState<{ label: string; valor: number }[]>([]);
+  const [garantiaValor, setGarantiaValor] = useState(0);
   const [faturamentoExpandido, setFaturamentoExpandido] = useState(false);
   const faturamentoRef = useRef<HTMLDivElement>(null);
 
@@ -180,7 +181,7 @@ export default function DashboardPage() {
       if (vendaIds.length > 0) {
         const { data: itensData, error: itensErr } = await supabase
           .from('vendas_itens')
-          .select('venda_id, quantidade, garantia, subtotal, produto:produtos(tipo, nome)')
+          .select('venda_id, quantidade, garantia, subtotal, preco_unitario, produto:produtos(tipo, nome)')
           .in('venda_id', vendaIds);
 
         if (itensErr) throw itensErr;
@@ -192,11 +193,16 @@ export default function DashboardPage() {
         const pneusGarantiaTmp: Record<number, number> = {};
         const produtosMap: Record<string, { nome: string; quantidade: number; faturamento: number }> = {};
         const categoriaMap: Record<string, number> = {};
+        let garantiaValorTmp = 0;
         (itensData || []).forEach((item: any) => {
           const ehProduto = item.produto?.tipo === 'Produto';
 
           const categoria = ehProduto ? 'Pneus' : (item.produto?.nome || 'Outros');
           categoriaMap[categoria] = (categoriaMap[categoria] || 0) + (item.subtotal || 0);
+
+          if (item.garantia) {
+            garantiaValorTmp += (item.quantidade || 0) * (item.preco_unitario || 0);
+          }
 
           if (!ehProduto) return;
           const lojaId = mapaVendaLoja[item.venda_id];
@@ -223,11 +229,13 @@ export default function DashboardPage() {
             .map(([label, valor]) => ({ label, valor }))
             .sort((a, b) => b.valor - a.valor)
         );
+        setGarantiaValor(garantiaValorTmp);
       } else {
         setPneusPorLoja({});
         setPneusGarantiaPorLoja({});
         setProdutosMaisVendidos([]);
         setFaturamentoDetalhado([]);
+        setGarantiaValor(0);
       }
 
       // 3) Evolução no período (agrupado por dia se 'mes'/'dia', por mês se 'ano')
@@ -418,6 +426,12 @@ export default function DashboardPage() {
                       </li>
                     ))}
                   </ul>
+                )}
+                {garantiaValor > 0 && (
+                  <div className="flex justify-between gap-3 text-sm mt-3 pt-3 border-t border-gray-100">
+                    <span className="text-gray-500">Garantias</span>
+                    <span className="font-semibold text-red-500 shrink-0">-{formatMoney(garantiaValor)}</span>
+                  </div>
                 )}
               </div>
             )}
