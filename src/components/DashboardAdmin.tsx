@@ -73,6 +73,7 @@ export default function DashboardAdmin() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [pneusPorLoja, setPneusPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
+  const [produtosMaisVendidos, setProdutosMaisVendidos] = useState<{ nome: string; quantidade: number; faturamento: number }[]>([]);
 
   useEffect(() => {
     carregarLojas();
@@ -112,7 +113,7 @@ export default function DashboardAdmin() {
       if (vendaIds.length > 0) {
         const { data: itensData, error: itensErr } = await supabase
           .from('vendas_itens')
-          .select('venda_id, quantidade, produto:produtos(tipo)')
+          .select('venda_id, quantidade, subtotal, produto:produtos(tipo, nome)')
           .in('venda_id', vendaIds);
 
         if (itensErr) throw itensErr;
@@ -121,16 +122,25 @@ export default function DashboardAdmin() {
         (vendasData || []).forEach(v => { mapaVendaLoja[v.id] = v.loja_id; });
 
         const pneusPorLojaTmp: Record<number, number> = {};
+        const produtosMap: Record<string, { nome: string; quantidade: number; faturamento: number }> = {};
         (itensData || []).forEach((item: any) => {
           const ehProduto = item.produto?.tipo === 'Produto';
           if (!ehProduto) return;
           const lojaId = mapaVendaLoja[item.venda_id];
-          if (!lojaId) return;
-          pneusPorLojaTmp[lojaId] = (pneusPorLojaTmp[lojaId] || 0) + (item.quantidade || 0);
+          if (lojaId) pneusPorLojaTmp[lojaId] = (pneusPorLojaTmp[lojaId] || 0) + (item.quantidade || 0);
+
+          const nome = item.produto?.nome || 'Sem nome';
+          if (!produtosMap[nome]) produtosMap[nome] = { nome, quantidade: 0, faturamento: 0 };
+          produtosMap[nome].quantidade += item.quantidade || 0;
+          produtosMap[nome].faturamento += item.subtotal || 0;
         });
         setPneusPorLoja(pneusPorLojaTmp);
+        setProdutosMaisVendidos(
+          Object.values(produtosMap).sort((a, b) => b.quantidade - a.quantidade).slice(0, 8)
+        );
       } else {
         setPneusPorLoja({});
+        setProdutosMaisVendidos([]);
       }
 
       // 3) Evolução no período
@@ -268,17 +278,17 @@ export default function DashboardAdmin() {
           </div>
 
           {/* Gráficos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">Faturamento por Loja</h2>
               {resumoPorLoja.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={resumoPorLoja}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v) => formatMoney(Number(v))} />
                     <Bar dataKey="faturamento" radius={[6, 6, 0, 0]}>
                       {resumoPorLoja.map((_, idx) => (
@@ -295,14 +305,32 @@ export default function DashboardAdmin() {
               {evolucao.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={evolucao}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v) => formatMoney(Number(v))} />
                     <Line type="monotone" dataKey="faturamento" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-lg font-bold text-gray-800 mb-4">Produtos Mais Vendidos</h2>
+              {produtosMaisVendidos.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={produtosMaisVendidos} layout="vertical" margin={{ left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 11 }} width={110}
+                      tickFormatter={(v: string) => v.length > 16 ? `${v.slice(0, 16)}…` : v} />
+                    <Tooltip formatter={(v, name) => name === 'quantidade' ? [v, 'Quantidade'] : [formatMoney(Number(v)), 'Faturamento']} />
+                    <Bar dataKey="quantidade" fill="#7c3aed" radius={[0, 6, 6, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
