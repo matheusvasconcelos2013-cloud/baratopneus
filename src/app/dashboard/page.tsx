@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
@@ -96,10 +96,16 @@ export default function DashboardPage() {
   const [pneusGarantiaPorLoja, setPneusGarantiaPorLoja] = useState<Record<number, number>>({});
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
   const [canaisAquisicao, setCanaisAquisicao] = useState<{ canal: string; total: number }[]>([]);
+  const [produtosMaisVendidos, setProdutosMaisVendidos] = useState<{ nome: string; quantidade: number; faturamento: number }[]>([]);
 
   const [lojaDetalhe, setLojaDetalhe] = useState<{ id: number; nome: string } | null>(null);
   const [vendasDetalhe, setVendasDetalhe] = useState<any[]>([]);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
+
+  const faturamentoScrollRef = useRef<HTMLDivElement>(null);
+  const scrollFaturamento = (direcao: 1 | -1) => {
+    faturamentoScrollRef.current?.scrollBy({ left: direcao * 150, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -160,7 +166,7 @@ export default function DashboardPage() {
       if (vendaIds.length > 0) {
         const { data: itensData, error: itensErr } = await supabase
           .from('vendas_itens')
-          .select('venda_id, quantidade, garantia, produto:produtos(tipo)')
+          .select('venda_id, quantidade, garantia, subtotal, produto:produtos(tipo, nome)')
           .in('venda_id', vendaIds);
 
         if (itensErr) throw itensErr;
@@ -170,6 +176,7 @@ export default function DashboardPage() {
 
         const pneusPorLojaTmp: Record<number, number> = {};
         const pneusGarantiaTmp: Record<number, number> = {};
+        const produtosMap: Record<string, { nome: string; quantidade: number; faturamento: number }> = {};
         (itensData || []).forEach((item: any) => {
           const ehProduto = item.produto?.tipo === 'Produto';
           if (!ehProduto) return;
@@ -181,12 +188,21 @@ export default function DashboardPage() {
           } else {
             pneusPorLojaTmp[lojaId] = (pneusPorLojaTmp[lojaId] || 0) + (item.quantidade || 0);
           }
+
+          const nome = item.produto?.nome || 'Sem nome';
+          if (!produtosMap[nome]) produtosMap[nome] = { nome, quantidade: 0, faturamento: 0 };
+          produtosMap[nome].quantidade += item.quantidade || 0;
+          produtosMap[nome].faturamento += item.subtotal || 0;
         });
         setPneusPorLoja(pneusPorLojaTmp);
         setPneusGarantiaPorLoja(pneusGarantiaTmp);
+        setProdutosMaisVendidos(
+          Object.values(produtosMap).sort((a, b) => b.quantidade - a.quantidade).slice(0, 5)
+        );
       } else {
         setPneusPorLoja({});
         setPneusGarantiaPorLoja({});
+        setProdutosMaisVendidos([]);
       }
 
       // 3) Evolução no período (agrupado por dia se 'mes'/'dia', por mês se 'ano')
@@ -360,26 +376,38 @@ export default function DashboardPage() {
         </div>
 
         {/* Gráficos */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Comparativo entre lojas */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Faturamento por Loja</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">Faturamento por Loja</h2>
+              {resumoPorLoja.length > 0 && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => scrollFaturamento(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Ver lojas anteriores">◀</button>
+                  <button onClick={() => scrollFaturamento(1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Ver próximas lojas">▶</button>
+                </div>
+              )}
+            </div>
             {resumoPorLoja.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={resumoPorLoja}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v) => formatMoney(Number(v))} />
-                  <Bar dataKey="faturamento" radius={[6, 6, 0, 0]}>
-                    {resumoPorLoja.map((_, idx) => (
-                      <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div ref={faturamentoScrollRef} className="overflow-x-auto">
+                <div style={{ minWidth: Math.max(240, resumoPorLoja.length * 90) }}>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={resumoPorLoja}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v) => formatMoney(Number(v))} />
+                      <Bar dataKey="faturamento" radius={[6, 6, 0, 0]}>
+                        {resumoPorLoja.map((_, idx) => (
+                          <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             )}
           </div>
 
@@ -389,14 +417,35 @@ export default function DashboardPage() {
             {evolucao.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={evolucao}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-<Tooltip formatter={(v) => formatMoney(Number(v))} />                  <Line type="monotone" dataKey="faturamento" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v) => formatMoney(Number(v))} />
+                  <Line type="monotone" dataKey="faturamento" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Top produtos mais vendidos */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Top 5 Produtos Mais Vendidos</h2>
+            {produtosMaisVendidos.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
+            ) : (
+              <ul className="space-y-3">
+                {produtosMaisVendidos.map((p, idx) => (
+                  <li key={p.nome} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center shrink-0">{idx + 1}</span>
+                      <span className="text-sm text-gray-700 truncate">{p.nome}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800 shrink-0">{p.quantidade} un.</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -408,12 +457,12 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={canaisAquisicao} layout="vertical">
+              <BarChart data={canaisAquisicao}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="canal" tick={{ fontSize: 12 }} width={110} />
+                <XAxis dataKey="canal" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                 <Tooltip formatter={(v) => `${v} vendas`} />
-                <Bar dataKey="total" radius={[0, 6, 6, 0]}>
+                <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                   {canaisAquisicao.map((_, idx) => (
                     <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
                   ))}
