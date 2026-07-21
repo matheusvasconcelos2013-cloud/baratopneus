@@ -5,6 +5,33 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
+const YOOSEE_SCHEME = 'yoosee://';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.yoosee';
+const APP_STORE_URL = 'https://apps.apple.com/us/app/yoosee/id981863450';
+
+function abrirAppYoosee() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+
+  if (!isIOS && !isAndroid) {
+    window.open(PLAY_STORE_URL, '_blank');
+    return;
+  }
+
+  const storeUrl = isIOS ? APP_STORE_URL : PLAY_STORE_URL;
+  let saiuDaAba = false;
+  const marcarSaida = () => { if (document.hidden) saiuDaAba = true; };
+  document.addEventListener('visibilitychange', marcarSaida);
+
+  window.location.href = YOOSEE_SCHEME;
+
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', marcarSaida);
+    if (!saiuDaAba) window.location.href = storeUrl;
+  }, 1500);
+}
+
 export default function CamerasPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -33,31 +60,24 @@ export default function CamerasPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-xl">
           <p className="text-sm text-gray-600 mb-6">
-            O Yoosee não tem um site que abra pelo navegador — as câmeras são visualizadas pelo próprio aplicativo, instalado no celular ou computador. Abra o app pelo atalho abaixo.
+            Clique para abrir o app Yoosee direto no celular. Se ele já estiver instalado, abre na hora; se não estiver, você é levado para a loja de aplicativos.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <a
-              href="https://play.google.com/store/apps/details?id=com.yoosee"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition"
-            >
-              Abrir no Android (Play Store)
+          <button
+            onClick={abrirAppYoosee}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition"
+          >
+            Abrir Yoosee
+          </button>
+
+          <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
+            <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 underline">
+              Instalar no Android
             </a>
-            <a
-              href="https://apps.apple.com/us/app/yoosee/id981863450"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
-            >
-              Abrir no iPhone (App Store)
+            <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 underline">
+              Instalar no iPhone
             </a>
           </div>
-
-          <p className="text-xs text-gray-400 mt-4">
-            No celular, se o app Yoosee já estiver instalado, o link pode abrir direto o aplicativo em vez da loja.
-          </p>
         </div>
       </main>
     </div>
