@@ -32,17 +32,52 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
     const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:contato@baratopneus.com";
 
-    if (!supabaseUrl || !supabaseServiceKey || !vapidPublicKey || !vapidPrivateKey) {
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !vapidPublicKey || !vapidPrivateKey) {
       throw new Error("Credenciais/VAPID ausentes nas variáveis de ambiente da função");
+    }
+
+    // verify_jwt só garante um JWT válido, e a chave anon (pública) também
+    // é um JWT válido — por isso confirmamos aqui que é um colaborador ativo real.
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+    if (userError || !userData.user?.email) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: colaboradorChamador } = await supabase
+      .from("colaboradores")
+      .select("id")
+      .ilike("email", userData.user.email)
+      .eq("ativo", true)
+      .maybeSingle();
+
+    if (!colaboradorChamador) {
+      return new Response(JSON.stringify({ error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: subs, error } = await supabase
       .from("push_subscriptions")
