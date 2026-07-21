@@ -37,6 +37,22 @@ type Periodo = 'dia' | 'mes' | 'ano';
 
 const CORES_LOJAS = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2'];
 
+// O PostgREST/Supabase limita cada resposta a 1000 linhas por padrão.
+// Para períodos com mais vendas que isso (ex: "Ano"), busca em páginas até esgotar.
+async function buscarTodasLinhas<T>(montarQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>): Promise<T[]> {
+  const TAMANHO_PAGINA = 1000;
+  let de = 0;
+  let todas: T[] = [];
+  while (true) {
+    const { data, error } = await montarQuery(de, de + TAMANHO_PAGINA - 1);
+    if (error) throw error;
+    todas = todas.concat(data || []);
+    if (!data || data.length < TAMANHO_PAGINA) break;
+    de += TAMANHO_PAGINA;
+  }
+  return todas;
+}
+
 // ---------- Helpers de data ----------
 function getRangeData(periodo: Periodo, dataRef: Date) {
   const inicio = new Date(dataRef);
@@ -152,17 +168,19 @@ export default function DashboardPage() {
       const { inicio, fim } = getRangeData(periodo, dataRef);
 
       // 1) Vendas do período (exclui canceladas)
-      let query = supabase
-        .from('vendas')
-        .select('id, loja_id, valor_total, lucro_final, data_venda, situacao, como_conheceu')
-        .gte('data_venda', formatDateInput(inicio))
-        .lte('data_venda', formatDateInput(fim))
-        .neq('situacao', 'Cancelada');
+      const vendasData = await buscarTodasLinhas<Venda>((de, ate) => {
+        let query = supabase
+          .from('vendas')
+          .select('id, loja_id, valor_total, lucro_final, data_venda, situacao, como_conheceu')
+          .gte('data_venda', formatDateInput(inicio))
+          .lte('data_venda', formatDateInput(fim))
+          .neq('situacao', 'Cancelada')
+          .range(de, ate);
 
-      if (lojaAtiva) query = query.eq('loja_id', parseInt(lojaAtiva));
+        if (lojaAtiva) query = query.eq('loja_id', parseInt(lojaAtiva));
 
-      const { data: vendasData, error: vendasErr } = await query;
-      if (vendasErr) throw vendasErr;
+        return query;
+      });
       setVendas(vendasData || []);
 
       const canaisTmp: Record<string, number> = {};
@@ -179,12 +197,13 @@ export default function DashboardPage() {
       // 2) Quantidade de pneus vendidos e em garantia (produtos tipo = 'Produto') nas vendas do período
       const vendaIds = (vendasData || []).map(v => v.id);
       if (vendaIds.length > 0) {
-        const { data: itensData, error: itensErr } = await supabase
-          .from('vendas_itens')
-          .select('venda_id, quantidade, garantia, subtotal, produto:produtos(tipo, nome)')
-          .in('venda_id', vendaIds);
-
-        if (itensErr) throw itensErr;
+        const itensData = await buscarTodasLinhas<any>((de, ate) =>
+          supabase
+            .from('vendas_itens')
+            .select('venda_id, quantidade, garantia, subtotal, produto:produtos(tipo, nome)')
+            .in('venda_id', vendaIds)
+            .range(de, ate)
+        );
 
         const mapaVendaLoja: Record<number, number> = {};
         (vendasData || []).forEach(v => { mapaVendaLoja[v.id] = v.loja_id; });
@@ -274,16 +293,17 @@ export default function DashboardPage() {
     setLoadingDetalhe(true);
     try {
       const { inicio, fim } = getRangeData(periodo, dataRef);
-      const { data, error } = await supabase
-        .from('vendas')
-        .select('id, codigo, valor_total, lucro_final, data_venda, situacao, cliente:clientes(nome), itens:vendas_itens(quantidade, preco_unitario, produto:produtos(nome))')
-        .eq('loja_id', loja.id)
-        .gte('data_venda', formatDateInput(inicio))
-        .lte('data_venda', formatDateInput(fim))
-        .neq('situacao', 'Cancelada')
-        .order('data_venda', { ascending: false });
-
-      if (error) throw error;
+      const data = await buscarTodasLinhas<any>((de, ate) =>
+        supabase
+          .from('vendas')
+          .select('id, codigo, valor_total, lucro_final, data_venda, situacao, cliente:clientes(nome), itens:vendas_itens(quantidade, preco_unitario, produto:produtos(nome))')
+          .eq('loja_id', loja.id)
+          .gte('data_venda', formatDateInput(inicio))
+          .lte('data_venda', formatDateInput(fim))
+          .neq('situacao', 'Cancelada')
+          .order('data_venda', { ascending: false })
+          .range(de, ate)
+      );
       setVendasDetalhe(data || []);
     } catch (err) {
       console.error('Erro ao carregar detalhe da loja:', err);
