@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
@@ -102,9 +102,9 @@ export default function DashboardPage() {
   const [vendasDetalhe, setVendasDetalhe] = useState<any[]>([]);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
 
-  const faturamentoScrollRef = useRef<HTMLDivElement>(null);
-  const scrollFaturamento = (direcao: 1 | -1) => {
-    faturamentoScrollRef.current?.scrollBy({ left: direcao * 150, behavior: 'smooth' });
+  const [graficoLojaView, setGraficoLojaView] = useState<'faturamento' | 'canais'>('faturamento');
+  const trocarGraficoLoja = () => {
+    setGraficoLojaView(atual => (atual === 'faturamento' ? 'canais' : 'faturamento'));
   };
 
   useEffect(() => {
@@ -377,37 +377,53 @@ export default function DashboardPage() {
 
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Comparativo entre lojas */}
+          {/* Faturamento por Loja / Como os Clientes Conheceram (alterna nas setas) */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Faturamento por Loja</h2>
-              {resumoPorLoja.length > 0 && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => scrollFaturamento(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Ver lojas anteriores">◀</button>
-                  <button onClick={() => scrollFaturamento(1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Ver próximas lojas">▶</button>
-                </div>
-              )}
-            </div>
-            {resumoPorLoja.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
-            ) : (
-              <div ref={faturamentoScrollRef} className="overflow-x-auto">
-                <div style={{ minWidth: Math.max(240, resumoPorLoja.length * 90) }}>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={resumoPorLoja}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(v) => formatMoney(Number(v))} />
-                      <Bar dataKey="faturamento" radius={[6, 6, 0, 0]}>
-                        {resumoPorLoja.map((_, idx) => (
-                          <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+              <h2 className="text-lg font-semibold text-gray-800">
+                {graficoLojaView === 'faturamento' ? 'Faturamento por Loja' : 'Como os Clientes Conheceram'}
+              </h2>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={trocarGraficoLoja} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Ver outro gráfico">◀</button>
+                <button onClick={trocarGraficoLoja} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Ver outro gráfico">▶</button>
               </div>
+            </div>
+            {graficoLojaView === 'faturamento' ? (
+              resumoPorLoja.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={resumoPorLoja}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v) => formatMoney(Number(v))} />
+                    <Bar dataKey="faturamento" radius={[6, 6, 0, 0]}>
+                      {resumoPorLoja.map((_, idx) => (
+                        <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )
+            ) : (
+              canaisAquisicao.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={canaisAquisicao}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="canal" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip formatter={(v) => `${v} vendas`} />
+                    <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                      {canaisAquisicao.map((_, idx) => (
+                        <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )
             )}
           </div>
 
@@ -448,28 +464,6 @@ export default function DashboardPage() {
               </ul>
             )}
           </div>
-        </div>
-
-        {/* Como conheceu a loja */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Como os Clientes Conheceram</h2>
-          {canaisAquisicao.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">Sem dados no período</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={canaisAquisicao}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="canal" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip formatter={(v) => `${v} vendas`} />
-                <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                  {canaisAquisicao.map((_, idx) => (
-                    <Cell key={idx} fill={CORES_LOJAS[idx % CORES_LOJAS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
         </div>
 
         {/* Tabela comparativa entre lojas */}
