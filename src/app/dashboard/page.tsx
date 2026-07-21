@@ -181,7 +181,7 @@ export default function DashboardPage() {
       if (vendaIds.length > 0) {
         const { data: itensData, error: itensErr } = await supabase
           .from('vendas_itens')
-          .select('venda_id, quantidade, garantia, subtotal, preco_unitario, produto:produtos(tipo, nome)')
+          .select('venda_id, quantidade, garantia, subtotal, produto:produtos(tipo, nome)')
           .in('venda_id', vendaIds);
 
         if (itensErr) throw itensErr;
@@ -201,7 +201,7 @@ export default function DashboardPage() {
           categoriaMap[categoria] = (categoriaMap[categoria] || 0) + (item.subtotal || 0);
 
           if (item.garantia) {
-            garantiaValorTmp += (item.quantidade || 0) * (item.preco_unitario || 0);
+            garantiaValorTmp += (item.quantidade || 0) * 100;
           }
 
           if (!ehProduto) return;
