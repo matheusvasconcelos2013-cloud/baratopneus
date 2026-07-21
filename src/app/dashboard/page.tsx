@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
@@ -97,6 +97,20 @@ export default function DashboardPage() {
   const [evolucao, setEvolucao] = useState<{ label: string; faturamento: number }[]>([]);
   const [canaisAquisicao, setCanaisAquisicao] = useState<{ canal: string; total: number }[]>([]);
   const [produtosMaisVendidos, setProdutosMaisVendidos] = useState<{ nome: string; quantidade: number; faturamento: number }[]>([]);
+  const [faturamentoDetalhado, setFaturamentoDetalhado] = useState<{ label: string; valor: number }[]>([]);
+  const [faturamentoExpandido, setFaturamentoExpandido] = useState(false);
+  const faturamentoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!faturamentoExpandido) return;
+    const aoClicarFora = (e: MouseEvent) => {
+      if (faturamentoRef.current && !faturamentoRef.current.contains(e.target as Node)) {
+        setFaturamentoExpandido(false);
+      }
+    };
+    document.addEventListener('mousedown', aoClicarFora);
+    return () => document.removeEventListener('mousedown', aoClicarFora);
+  }, [faturamentoExpandido]);
 
   const [lojaDetalhe, setLojaDetalhe] = useState<{ id: number; nome: string } | null>(null);
   const [vendasDetalhe, setVendasDetalhe] = useState<any[]>([]);
@@ -177,8 +191,13 @@ export default function DashboardPage() {
         const pneusPorLojaTmp: Record<number, number> = {};
         const pneusGarantiaTmp: Record<number, number> = {};
         const produtosMap: Record<string, { nome: string; quantidade: number; faturamento: number }> = {};
+        const categoriaMap: Record<string, number> = {};
         (itensData || []).forEach((item: any) => {
           const ehProduto = item.produto?.tipo === 'Produto';
+
+          const categoria = ehProduto ? 'Pneus' : (item.produto?.nome || 'Outros');
+          categoriaMap[categoria] = (categoriaMap[categoria] || 0) + (item.subtotal || 0);
+
           if (!ehProduto) return;
           const lojaId = mapaVendaLoja[item.venda_id];
           if (!lojaId) return;
@@ -199,10 +218,16 @@ export default function DashboardPage() {
         setProdutosMaisVendidos(
           Object.values(produtosMap).sort((a, b) => b.quantidade - a.quantidade).slice(0, 5)
         );
+        setFaturamentoDetalhado(
+          Object.entries(categoriaMap)
+            .map(([label, valor]) => ({ label, valor }))
+            .sort((a, b) => b.valor - a.valor)
+        );
       } else {
         setPneusPorLoja({});
         setPneusGarantiaPorLoja({});
         setProdutosMaisVendidos([]);
+        setFaturamentoDetalhado([]);
       }
 
       // 3) Evolução no período (agrupado por dia se 'mes'/'dia', por mês se 'ano')
@@ -367,7 +392,36 @@ export default function DashboardPage() {
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-          <KpiCard titulo="Faturamento" valor={formatMoney(kpis.faturamento)} cor="text-green-600" icone="💰" />
+          <div ref={faturamentoRef} className="relative">
+            <button
+              onClick={() => setFaturamentoExpandido(v => !v)}
+              className="w-full text-left bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition cursor-pointer"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">Faturamento</span>
+                <span className="text-lg">💰</span>
+              </div>
+              <p className="text-2xl font-bold text-green-600">{formatMoney(kpis.faturamento)}</p>
+            </button>
+
+            {faturamentoExpandido && (
+              <div className="absolute z-20 top-full left-0 mt-2 w-[280px] max-w-[90vw] bg-white rounded-xl shadow-lg border border-gray-200 p-4">
+                <p className="text-sm font-semibold text-gray-700 mb-3">De onde veio o faturamento</p>
+                {faturamentoDetalhado.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-4">Sem dados no período</p>
+                ) : (
+                  <ul className="space-y-2 max-h-64 overflow-y-auto">
+                    {faturamentoDetalhado.map(f => (
+                      <li key={f.label} className="flex justify-between gap-3 text-sm">
+                        <span className="text-gray-600 truncate">{f.label}</span>
+                        <span className="font-semibold text-gray-800 shrink-0">{formatMoney(f.valor)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
           <KpiCard titulo="Lucro" valor={formatMoney(kpis.lucro)} cor="text-blue-600" icone="📈" />
           <KpiCard titulo="Vendas" valor={kpis.totalVendas.toString()} cor="text-gray-800" icone="🧾" />
           <KpiCard titulo="Ticket Médio" valor={formatMoney(kpis.ticketMedio)} cor="text-purple-600" icone="🎯" />
