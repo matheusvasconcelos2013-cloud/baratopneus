@@ -380,6 +380,25 @@ CROSS JOIN lojas l
 LEFT JOIN estoque_lojas e ON e.produto_id = p.id AND e.loja_id = l.id
 ORDER BY l.nome, p.nome;
 
+-- View: soma de estoque de produtos "Pneu Remold" (todas as medidas) por loja física.
+-- Usada no resumo da página /produtos. Exclui canais não-físicos (ex: Shopee).
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA extensions;
+
+CREATE OR REPLACE VIEW estoque_remold_por_loja
+WITH (security_invoker = true) AS
+SELECT
+  l.id AS loja_id,
+  l.nome AS loja_nome,
+  COALESCE(SUM(e.quantidade), 0)::numeric AS quantidade_total
+FROM lojas l
+CROSS JOIN produtos p
+LEFT JOIN estoque_lojas e
+  ON e.produto_id = p.id AND e.loja_id = l.id
+WHERE extensions.unaccent(lower(p.nome)) LIKE '%pneu remold%'
+  AND l.fisica = true
+GROUP BY l.id, l.nome
+ORDER BY l.nome;
+
 -- View: relatório diário de vendas por loja (existia em produção mas
 -- nunca tinha sido versionada aqui)
 CREATE OR REPLACE VIEW relatorio_diario

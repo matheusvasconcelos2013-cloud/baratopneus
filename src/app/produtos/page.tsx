@@ -14,6 +14,12 @@ interface ProdutoComEstoque extends Produto {
   estoque_minimo_atual?: number;
 }
 
+interface EstoqueRemoldLoja {
+  loja_id: number;
+  loja_nome: string;
+  quantidade_total: number;
+}
+
 export default function ProdutosPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -27,6 +33,7 @@ export default function ProdutosPage() {
   const [lojaAtiva, setLojaAtiva] = useState<string>(''); // '' = todas as lojas
   const [ordenarPor, setOrdenarPor] = useState<string>('nome');
   const [direcao, setDirecao] = useState<'asc' | 'desc'>('asc');
+  const [estoqueRemold, setEstoqueRemold] = useState<EstoqueRemoldLoja[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,12 +41,21 @@ export default function ProdutosPage() {
       setUser(session.user);
       carregarLojas();
       carregar();
+      carregarEstoqueRemold();
     });
   }, [router]);
 
   const carregarLojas = async () => {
     const { data } = await supabase.from('lojas').select('id,nome').order('nome');
     if (data) setLojas(data);
+  };
+
+  const carregarEstoqueRemold = async () => {
+    const { data, error } = await supabase
+      .from('estoque_remold_por_loja')
+      .select('loja_id, loja_nome, quantidade_total');
+    if (error) { console.error('Erro ao carregar estoque de Remold:', error); return; }
+    setEstoqueRemold(data || []);
   };
 
   const carregar = async (lojaId?: string) => {
@@ -176,6 +192,32 @@ export default function ProdutosPage() {
           </div>
           <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Novo Produto</Button>
         </header>
+
+        {estoqueRemold.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_2fr] gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">Total Pneu Remold (todas as lojas)</span>
+                <span className="text-lg">🛞</span>
+              </div>
+              <p className="text-2xl font-bold text-orange-600">
+                {estoqueRemold.reduce((acc, e) => acc + (e.quantidade_total || 0), 0)} UN
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {estoqueRemold.map(e => (
+                <div key={e.loja_id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-500 truncate" title={e.loja_nome}>{e.loja_nome}</span>
+                    <span className="text-lg">📍</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-700">{e.quantidade_total} UN</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-3 items-center">
           <input type="text" placeholder="🔍 Buscar..." value={search} onChange={e => setSearch(e.target.value)}
