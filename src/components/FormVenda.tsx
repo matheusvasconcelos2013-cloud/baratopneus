@@ -30,7 +30,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean; lado: string; medida_esquerdo_antes: string; medida_esquerdo_depois: string; medida_direito_antes: string; medida_direito_depois: string }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '' });
+  const [novoItem, setNovoItem] = useState<{ produto_id: string; quantidade: number | ''; preco_unitario: number; preco_custo: number; desconto: number; garantia: boolean; lado: string; medida_esquerdo_antes: string; medida_esquerdo_depois: string; medida_direito_antes: string; medida_direito_depois: string; loja_id: string }>({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '', loja_id: '' });
   const [showNovoCliente, setShowNovoCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({ nome: '', telefone: '', celular: '', cpf_cnpj: '' });
   const [loadingCliente, setLoadingCliente] = useState(false);
@@ -97,8 +97,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   };
 
   const carregarItens = async (vendaId: number) => {
-    const { data } = await supabase.from('vendas_itens').select('*, produto:produtos(nome)').eq('venda_id', vendaId);
-    if (data) setItens(data.map((item: any) => ({ ...item, produto_nome: item.produto?.nome })));
+    const { data } = await supabase.from('vendas_itens').select('*, produto:produtos(nome), loja:lojas(nome)').eq('venda_id', vendaId);
+    if (data) setItens(data.map((item: any) => ({ ...item, produto_nome: item.produto?.nome, loja_nome: item.loja?.nome })));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -142,9 +142,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (comLado && !novoItem.lado) { toast.error('Selecione o lado'); return; }
     if (comLado && (novoItem.lado === 'Esquerdo' || novoItem.lado === 'Esquerdo e Direito') && (!novoItem.medida_esquerdo_antes || !novoItem.medida_esquerdo_depois)) { toast.error('Informe a medida do lado esquerdo (antes e depois)'); return; }
     if (comLado && (novoItem.lado === 'Direito' || novoItem.lado === 'Esquerdo e Direito') && (!novoItem.medida_direito_antes || !novoItem.medida_direito_depois)) { toast.error('Informe a medida do lado direito (antes e depois)'); return; }
+    if (isShopee && !novoItem.loja_id) { toast.error('Selecione a loja de onde o produto será retirado'); return; }
     const quantidade = Number(novoItem.quantidade) || 1;
     const precoUnitario = novoItem.preco_unitario || prod?.preco_venda || 0;
     const desconto = novoItem.desconto || 0;
+    const lojaItem = lojas.find(l => l.id === Number(novoItem.loja_id));
     setItens(prev => [...prev, {
       produto_id: Number(novoItem.produto_id),
       quantidade,
@@ -158,9 +160,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       medida_esquerdo_antes: comLado && novoItem.medida_esquerdo_antes ? parseFloat(novoItem.medida_esquerdo_antes) : undefined,
       medida_esquerdo_depois: comLado && novoItem.medida_esquerdo_depois ? parseFloat(novoItem.medida_esquerdo_depois) : undefined,
       medida_direito_antes: comLado && novoItem.medida_direito_antes ? parseFloat(novoItem.medida_direito_antes) : undefined,
-      medida_direito_depois: comLado && novoItem.medida_direito_depois ? parseFloat(novoItem.medida_direito_depois) : undefined
+      medida_direito_depois: comLado && novoItem.medida_direito_depois ? parseFloat(novoItem.medida_direito_depois) : undefined,
+      loja_id: isShopee && novoItem.loja_id ? Number(novoItem.loja_id) : undefined,
+      loja_nome: isShopee ? lojaItem?.nome : undefined
     }]);
-    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '' });
+    setNovoItem({ produto_id: '', quantidade: 1, preco_unitario: 0, preco_custo: 0, desconto: 0, garantia: false, lado: '', medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '', loja_id: '' });
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -412,6 +416,11 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
                         {item.medida_direito_antes != null && item.medida_direito_depois != null && ` | Dir: ${item.medida_direito_antes} → ${item.medida_direito_depois}`}
                       </span>
                     )}
+                    {isShopee && item.loja_nome && (
+                      <span className="ml-2 text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                        Retirado de: {item.loja_nome}
+                      </span>
+                    )}
                   </span>
                   <span className="text-sm text-gray-500">Qtd: {item.quantidade}</span>
                   {item.desconto > 0 && (
@@ -430,12 +439,18 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
+          <div className={`grid grid-cols-1 gap-2 mb-4 ${isShopee ? 'md:grid-cols-6' : 'md:grid-cols-5'}`}>
             <SearchSelect label="Produto" value={novoItem.produto_id} onChange={(val) => {
               const prod = produtos.find(p => p.id === Number(val));
               setNovoItem({ ...novoItem, produto_id: val.toString(), preco_unitario: prod?.preco_venda || 0, preco_custo: prod?.preco_custo || 0, lado: '', medida_esquerdo_antes: '', medida_esquerdo_depois: '', medida_direito_antes: '', medida_direito_depois: '' });
             }} options={produtos.map(p => ({ value: p.id, label: p.nome }))}
               placeholder="Digite o nome do produto..." />
+            {isShopee && (
+              <Select label="Loja (retirada) *" value={novoItem.loja_id}
+                onChange={(e) => setNovoItem({ ...novoItem, loja_id: e.target.value })}
+                options={lojas.filter(l => l.nome.toLowerCase() !== 'shopee').map(l => ({ value: l.id, label: l.nome }))}
+                placeholder="Selecione a loja" />
+            )}
             <Input label="Quantidade" type="number" value={novoItem.quantidade}
               onChange={(e) => {
                 const raw = e.target.value;
