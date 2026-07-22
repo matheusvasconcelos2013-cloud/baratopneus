@@ -146,8 +146,6 @@ export default function ShopeePage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Código</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Cliente</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Itens (loja física)</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Valor</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Lucro</th>
@@ -158,8 +156,6 @@ export default function ShopeePage() {
               <tbody>
                 {vendasFiltradas.map(v => (
                   <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-medium text-gray-800">#{v.codigo || v.id}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{v.cliente?.nome || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">
                       {(v.itens || []).map((item, idx) => (
                         <span key={idx} className="inline-block mr-2">
@@ -175,7 +171,7 @@ export default function ShopeePage() {
                     </td>
                   </tr>
                 ))}
-                {vendasFiltradas.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhuma venda</td></tr>}
+                {vendasFiltradas.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhuma venda</td></tr>}
               </tbody>
             </table>
           </div>
