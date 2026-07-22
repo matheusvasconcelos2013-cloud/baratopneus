@@ -163,7 +163,7 @@ export default function ShopeePage() {
                     <td className="py-3 px-4 text-sm text-gray-600">
                       {(v.itens || []).map((item, idx) => (
                         <span key={idx} className="inline-block mr-2">
-                          {item.produto?.nome || 'Item'} ({item.quantidade}x) — {item.loja?.nome || 'sem loja definida'}
+                          {item.produto?.nome || 'Item'} ({item.quantidade}x){item.loja?.nome ? ` — ${item.loja.nome}` : ''}
                         </span>
                       ))}
                     </td>

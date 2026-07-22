@@ -128,6 +128,9 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     return itens.filter(item => item.garantia).reduce((acc, item) => acc + item.quantidade, 0);
   };
 
+  const lojaSelecionada = lojas.find(l => l.id === Number(form.loja_id));
+  const isShopee = (lojaSelecionada?.nome || '').toLowerCase() === 'shopee';
+
   const ehAlinhamento = (nome?: string) => (nome || '').toLowerCase().includes('alinhamento');
   const ehCambagem = (nome?: string) => (nome || '').toLowerCase().includes('cambagem');
   const precisaLado = (nome?: string) => ehAlinhamento(nome) || ehCambagem(nome);
@@ -228,8 +231,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     if (itens.length === 0) { toast.error('Adicione pelo menos um item à venda'); return; }
     if (!form.loja_id) { toast.error('Selecione a loja'); return; }
     if (!form.vendedor_id) { toast.error('Selecione o vendedor'); return; }
-    if (!form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
-    if (!form.cliente_id) { toast.error('Selecione o cliente'); return; }
+    if (!isShopee && !form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
+    if (!isShopee && !form.cliente_id) { toast.error('Selecione o cliente'); return; }
     setLoading(true);
 
     try {
@@ -240,7 +243,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       const vendaData = {
         ...form,
         loja_id: lojaId,
-        cliente_id: form.cliente_id ? parseInt(form.cliente_id) : null,
+        como_conheceu: isShopee ? '-' : form.como_conheceu,
+        cliente_id: !isShopee && form.cliente_id ? parseInt(form.cliente_id) : null,
         vendedor_id: form.vendedor_id ? parseInt(form.vendedor_id) : null,
         valor_total: total,
         lucro_final: lucro,
@@ -343,27 +347,31 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
     <Modal isOpen={isOpen} onClose={onClose} title={venda ? 'Editar Venda' : 'Nova Venda'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
-            disabled={itens.some(i => i.garantia) || novoItem.garantia}
-            options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }, { value: '-', label: '-' }]}
-            placeholder="Selecione" />
+          {!isShopee && (
+            <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
+              disabled={itens.some(i => i.garantia) || novoItem.garantia}
+              options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }, { value: '-', label: '-' }]}
+              placeholder="Selecione" />
+          )}
           <Select label="Loja *" value={form.loja_id} onChange={handleChange} name="loja_id"
             options={lojas.map(l => ({ value: l.id, label: l.nome }))} placeholder="Selecione a loja" />
-          <div className="md:col-span-2">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <SearchSelect label="Cliente *" value={form.cliente_id}
-                  onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val.toString() }))}
-                  options={clientes.map(c => ({ value: c.id, label: c.nome }))}
-                  placeholder="Digite o nome do cliente..." />
+          {!isShopee && (
+            <div className="md:col-span-2">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <SearchSelect label="Cliente *" value={form.cliente_id}
+                    onChange={(val) => setForm(prev => ({ ...prev, cliente_id: val.toString() }))}
+                    options={clientes.map(c => ({ value: c.id, label: c.nome }))}
+                    placeholder="Digite o nome do cliente..." />
+                </div>
+                <button type="button" onClick={() => setShowNovoCliente(true)}
+                  className="h-[42px] px-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-1 text-sm whitespace-nowrap">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Novo
+                </button>
               </div>
-              <button type="button" onClick={() => setShowNovoCliente(true)}
-                className="h-[42px] px-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-1 text-sm whitespace-nowrap">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Novo
-              </button>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
