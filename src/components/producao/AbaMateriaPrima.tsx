@@ -22,6 +22,7 @@ export default function AbaMateriaPrima() {
   const [fornecedores, setFornecedores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     material_id: '',
@@ -91,6 +92,19 @@ export default function AbaMateriaPrima() {
     setSalvando(false);
   };
 
+  const excluir = async (id: number) => {
+    if (!confirm('Excluir esta compra de matéria-prima? Essa ação não pode ser desfeita.')) return;
+    setExcluindoId(id);
+    const { error } = await supabase.from('entrada_materia_prima').delete().eq('id', id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Compra excluída.');
+      carregar();
+    }
+    setExcluindoId(null);
+  };
+
   const totalGeral = entradas.reduce((acc, e) => acc + Number(e.valor_total), 0);
 
   return (
@@ -156,11 +170,12 @@ export default function AbaMateriaPrima() {
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Valor unitário</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Quantidade</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Valor total</th>
+                <th className="text-center py-3 px-4 font-medium text-gray-500">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
-              {!loading && entradas.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhuma compra registrada ainda.</td></tr>}
+              {loading && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+              {!loading && entradas.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Nenhuma compra registrada ainda.</td></tr>}
               {entradas.map((e) => (
                 <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-gray-800">{e.materiais?.nome}</td>
@@ -168,6 +183,14 @@ export default function AbaMateriaPrima() {
                   <td className="py-3 px-4 text-right text-gray-600">{formatMoney(e.valor_unitario)} / {e.materiais?.unidade_padrao}</td>
                   <td className="py-3 px-4 text-right text-gray-600">{e.quantidade_comprada}</td>
                   <td className="py-3 px-4 text-right font-medium text-green-600">{formatMoney(e.valor_total)}</td>
+                  <td className="py-3 px-4">
+                    <div className="flex justify-center">
+                      <button onClick={() => excluir(e.id)} disabled={excluindoId === e.id}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50" title="Excluir">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

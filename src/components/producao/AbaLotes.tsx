@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Input, Select, Button, formatMoney, formatDate } from '@/components/FormElements';
+import { Input, Select, Button, formatDate } from '@/components/FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
 import { Material, ResumoLoteProducao, LoteMaterialConsumido } from '@/types';
 import toast from 'react-hot-toast';
+
+// A aba Produção trabalha só com números inteiros (sem centavos/frações).
+function formatReais(value: number): string {
+  return Math.round(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
 
 interface CustoMedioCarcaca {
   medida: string;
@@ -78,12 +83,12 @@ export default function AbaLotes() {
   const handleMedidaChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const medida = e.target.value;
     const sugestao = custosCarcaca.find((c) => c.medida.toLowerCase() === medida.toLowerCase());
-    setForm((prev) => ({ ...prev, medida, custo_unitario_carcaca: sugestao ? String(sugestao.custo_medio_unitario) : prev.custo_unitario_carcaca }));
+    setForm((prev) => ({ ...prev, medida, custo_unitario_carcaca: sugestao ? String(Math.round(sugestao.custo_medio_unitario)) : prev.custo_unitario_carcaca }));
   };
 
   const handleMaterialSelecionado = (materialId: string) => {
     const custo = custosMaterial.find((c) => c.material_id === Number(materialId));
-    setNovoMaterial({ material_id: materialId, quantidade_consumida: '', custo_unitario: custo ? String(custo.custo_unitario_atual) : '' });
+    setNovoMaterial({ material_id: materialId, quantidade_consumida: '', custo_unitario: custo ? String(Math.round(custo.custo_unitario_atual)) : '' });
   };
 
   const adicionarMaterial = () => {
@@ -94,8 +99,8 @@ export default function AbaLotes() {
     const mat = materiais.find((m) => m.id === Number(novoMaterial.material_id));
     setMateriaisConsumidos((prev) => [...prev, {
       material_id: Number(novoMaterial.material_id),
-      quantidade_consumida: Number(novoMaterial.quantidade_consumida),
-      custo_unitario: Number(novoMaterial.custo_unitario) || 0,
+      quantidade_consumida: Math.round(Number(novoMaterial.quantidade_consumida)),
+      custo_unitario: Math.round(Number(novoMaterial.custo_unitario) || 0),
       material_nome: mat?.nome,
       unidade: mat?.unidade_padrao,
     }]);
@@ -128,9 +133,9 @@ export default function AbaLotes() {
       const { data, error } = await supabase.from('lotes_producao').insert({
         data_producao: form.data_producao,
         medida: form.medida,
-        quantidade_carcacas_usadas: Number(form.quantidade_carcacas_usadas),
-        custo_unitario_carcaca: Number(form.custo_unitario_carcaca),
-        quantidade_produzida: Number(form.quantidade_produzida),
+        quantidade_carcacas_usadas: Math.round(Number(form.quantidade_carcacas_usadas)),
+        custo_unitario_carcaca: Math.round(Number(form.custo_unitario_carcaca)),
+        quantidade_produzida: Math.round(Number(form.quantidade_produzida)),
         loja_destino_id: form.loja_destino_id ? parseInt(form.loja_destino_id) : null,
         observacao: form.observacao || null,
       }).select().single();
@@ -142,8 +147,8 @@ export default function AbaLotes() {
           materiaisConsumidos.map((m) => ({
             lote_id: data.id,
             material_id: m.material_id,
-            quantidade_consumida: m.quantidade_consumida,
-            custo_unitario: m.custo_unitario,
+            quantidade_consumida: Math.round(m.quantidade_consumida),
+            custo_unitario: Math.round(m.custo_unitario),
           }))
         );
         if (errMat) throw errMat;
@@ -181,9 +186,9 @@ export default function AbaLotes() {
           <Input label="Medida" name="medida" value={form.medida} onChange={handleMedidaChange} placeholder="Ex: 175/70 R13" required />
           <Select label="Loja de destino" name="loja_destino_id" value={form.loja_destino_id} onChange={handleChange}
             options={lojas.map((l) => ({ value: l.id, label: l.nome }))} placeholder="Opcional" />
-          <Input label="Carcaças usadas" type="number" min={1} name="quantidade_carcacas_usadas" value={form.quantidade_carcacas_usadas} onChange={handleChange} required />
-          <Input label="Custo unitário da carcaça (R$)" type="number" step="0.01" min={0} name="custo_unitario_carcaca" value={form.custo_unitario_carcaca} onChange={handleChange} required />
-          <Input label="Pneus produzidos" type="number" min={0} name="quantidade_produzida" value={form.quantidade_produzida} onChange={handleChange} required />
+          <Input label="Carcaças usadas" type="number" step="1" min={1} name="quantidade_carcacas_usadas" value={form.quantidade_carcacas_usadas} onChange={handleChange} required />
+          <Input label="Custo unitário da carcaça (R$)" type="number" step="1" min={0} name="custo_unitario_carcaca" value={form.custo_unitario_carcaca} onChange={handleChange} required />
+          <Input label="Pneus produzidos" type="number" step="1" min={0} name="quantidade_produzida" value={form.quantidade_produzida} onChange={handleChange} required />
         </div>
 
         <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
@@ -195,8 +200,8 @@ export default function AbaLotes() {
                 <div key={idx} className="flex items-center gap-2 bg-white p-3 rounded-lg border border-gray-200">
                   <span className="flex-1 text-sm font-medium text-gray-700">{m.material_nome}</span>
                   <span className="text-sm text-gray-500">{m.quantidade_consumida} {m.unidade}</span>
-                  <span className="text-sm text-gray-400">{formatMoney(m.custo_unitario)}/{m.unidade}</span>
-                  <span className="text-sm text-green-600 font-medium">{formatMoney(m.quantidade_consumida * m.custo_unitario)}</span>
+                  <span className="text-sm text-gray-400">{formatReais(m.custo_unitario)}/{m.unidade}</span>
+                  <span className="text-sm text-green-600 font-medium">{formatReais(m.quantidade_consumida * m.custo_unitario)}</span>
                   <button type="button" onClick={() => removerMaterial(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
@@ -208,9 +213,9 @@ export default function AbaLotes() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             <Select label="Material" value={novoMaterial.material_id} onChange={(e) => handleMaterialSelecionado(e.target.value)}
               options={materiais.map((m) => ({ value: m.id, label: m.nome }))} placeholder="Selecione..." />
-            <Input label="Quantidade consumida" type="number" step="0.01" min={0} value={novoMaterial.quantidade_consumida}
+            <Input label="Quantidade consumida" type="number" step="1" min={0} value={novoMaterial.quantidade_consumida}
               onChange={(e) => setNovoMaterial({ ...novoMaterial, quantidade_consumida: e.target.value })} />
-            <Input label="Custo unitário (R$)" type="number" step="0.01" min={0} value={novoMaterial.custo_unitario}
+            <Input label="Custo unitário (R$)" type="number" step="1" min={0} value={novoMaterial.custo_unitario}
               onChange={(e) => setNovoMaterial({ ...novoMaterial, custo_unitario: e.target.value })} />
             <Button type="button" onClick={adicionarMaterial} variant="success" className="h-[42px] mt-auto">+ Adicionar</Button>
           </div>
@@ -218,10 +223,10 @@ export default function AbaLotes() {
 
         <div className="flex flex-wrap justify-between items-center gap-3 pt-3 border-t border-gray-200">
           <div className="text-sm text-gray-500 space-x-4">
-            <span>Custo carcaças: <span className="font-medium text-gray-700">{formatMoney(custoCarcacasTotal)}</span></span>
-            <span>Custo materiais: <span className="font-medium text-gray-700">{formatMoney(custoMateriaisTotal)}</span></span>
+            <span>Custo carcaças: <span className="font-medium text-gray-700">{formatReais(custoCarcacasTotal)}</span></span>
+            <span>Custo materiais: <span className="font-medium text-gray-700">{formatReais(custoMateriaisTotal)}</span></span>
           </div>
-          <span className="text-lg font-bold text-gray-800">Custo previsto por pneu: {formatMoney(custoPorPneuPrevisto)}</span>
+          <span className="text-lg font-bold text-gray-800">Custo previsto por pneu: {formatReais(custoPorPneuPrevisto)}</span>
         </div>
 
         <div className="flex justify-end">
@@ -257,15 +262,15 @@ export default function AbaLotes() {
                     <td className="py-3 px-4 text-gray-600">{l.medida}</td>
                     <td className="py-3 px-4 text-right text-gray-600">{l.quantidade_produzida}</td>
                     <td className={`py-3 px-4 text-right ${l.quantidade_refugo > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>{l.quantidade_refugo}</td>
-                    <td className="py-3 px-4 text-right text-gray-600">{formatMoney(l.custo_total)}</td>
-                    <td className="py-3 px-4 text-right font-medium text-gray-800">{formatMoney(l.custo_por_pneu)}</td>
-                    <td className="py-3 px-4 text-right text-gray-500">{produto ? formatMoney(produto.preco_venda) : '—'}</td>
+                    <td className="py-3 px-4 text-right text-gray-600">{formatReais(l.custo_total)}</td>
+                    <td className="py-3 px-4 text-right font-medium text-gray-800">{formatReais(l.custo_por_pneu)}</td>
+                    <td className="py-3 px-4 text-right text-gray-500">{produto ? formatReais(produto.preco_venda) : '—'}</td>
                     <td className="py-3 px-4 text-right">
                       {margem === null ? (
                         <span className="text-gray-400">—</span>
                       ) : (
                         <span className={`font-semibold ${margem >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {margem >= 0 ? '+' : ''}{formatMoney(margem)}
+                          {margem >= 0 ? '+' : ''}{formatReais(margem)}
                         </span>
                       )}
                     </td>
