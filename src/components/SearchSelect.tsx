@@ -15,10 +15,15 @@ interface SearchSelectProps {
   placeholder?: string;
   required?: boolean;
   className?: string;
+  /** Quando true, aceita um valor digitado que não está na lista de opções
+   * (comitado ao sair do campo), em vez de exigir que o usuário clique em
+   * uma opção existente. Útil para campos de texto livre com sugestões,
+   * como "Medida" — não afeta o uso padrão (seleção de um id existente). */
+  allowCustom?: boolean;
 }
 
 export default function SearchSelect({
-  label, value, onChange, options, placeholder = 'Selecione...', required, className = ''
+  label, value, onChange, options, placeholder = 'Selecione...', required, className = '', allowCustom = false
 }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -27,11 +32,11 @@ export default function SearchSelect({
   useEffect(() => {
     if (value) {
       const found = options.find(o => o.value == value);
-      setSearch(found?.label || '');
+      setSearch(found ? found.label : (allowCustom ? String(value) : ''));
     } else {
       setSearch('');
     }
-  }, [value, options]);
+  }, [value, options, allowCustom]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -61,6 +66,11 @@ export default function SearchSelect({
           if (e.target.value === '') onChange('');
         }}
         onFocus={() => setIsOpen(true)}
+        onBlur={() => {
+          if (!allowCustom) return;
+          const found = options.find(o => o.label.toLowerCase() === search.toLowerCase());
+          onChange(found ? found.value : search);
+        }}
         placeholder={placeholder}
         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
         autoComplete="off"

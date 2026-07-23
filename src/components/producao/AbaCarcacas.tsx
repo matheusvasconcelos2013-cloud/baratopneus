@@ -15,12 +15,19 @@ interface CustoMedio {
   ultima_compra: string;
 }
 
+// Extrai a medida do nome do produto em estoque, ex: "Pneu Remold 175/70-13" -> "175/70-13"
+function extrairMedida(nome: string): string {
+  return nome.replace(/^pneus?\s+(remolds?|usados?)\b\s*/i, '').trim();
+}
+
 export default function AbaCarcacas() {
   const [entradas, setEntradas] = useState<EntradaCarcaca[]>([]);
   const [custosMedios, setCustosMedios] = useState<CustoMedio[]>([]);
   const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [medidasEstoque, setMedidasEstoque] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     data_compra: getLocalDateString(),
@@ -33,15 +40,22 @@ export default function AbaCarcacas() {
 
   const carregar = async () => {
     setLoading(true);
-    const [{ data: ents, error }, { data: custos }, { data: forns }] = await Promise.all([
+    const [{ data: ents, error }, { data: custos }, { data: forns }, { data: prods }] = await Promise.all([
       supabase.from('entrada_carcacas').select('*, fornecedor:fornecedores(id,nome)').order('data_compra', { ascending: false }),
       supabase.from('custo_medio_carcaca_por_medida').select('*').order('medida'),
       supabase.from('fornecedores').select('id,nome').order('nome'),
+      supabase.from('produtos').select('nome').eq('ativo', true).or('nome.ilike.%remold%,nome.ilike.%usado%'),
     ]);
     if (error) toast.error(error.message);
     setEntradas((ents as any) || []);
     setCustosMedios(custos || []);
     setFornecedores(forns || []);
+
+    const medidas = (prods || [])
+      .map((p) => extrairMedida(p.nome))
+      .filter((m) => m.length > 0);
+    setMedidasEstoque(Array.from(new Set(medidas)).sort());
+
     setLoading(false);
   };
 
@@ -86,6 +100,19 @@ export default function AbaCarcacas() {
     setSalvando(false);
   };
 
+  const excluir = async (id: number) => {
+    if (!confirm('Excluir esta entrada de carcaças? Essa ação não pode ser desfeita.')) return;
+    setExcluindoId(id);
+    const { error } = await supabase.from('entrada_carcacas').delete().eq('id', id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Entrada excluída.');
+      carregar();
+    }
+    setExcluindoId(null);
+  };
+
   const totalCarcacas = entradas.reduce((acc, e) => acc + e.quantidade, 0);
   const totalInvestido = entradas.reduce((acc, e) => acc + Number(e.valor_total), 0);
 
@@ -108,7 +135,8 @@ export default function AbaCarcacas() {
           <Input label="Data da compra" type="date" name="data_compra" value={form.data_compra} onChange={handleChange} required />
           <Select label="Fornecedor" name="fornecedor_id" value={form.fornecedor_id} onChange={handleChange}
             options={fornecedores.map((f) => ({ value: f.id, label: f.nome }))} placeholder="Selecione ou deixe em branco" />
-          <Input label="Medida (aro)" name="medida" value={form.medida} onChange={handleChange} placeholder="Ex: 175/70 R13" required />
+          <SearchSelect label="Medida (aro)" value={form.medida} onChange={(val) => setForm({ ...form, medida: String(val) })}
+            options={medidasEstoque.map((m) => ({ value: m, label: m }))} placeholder="Digite ou selecione do estoque" allowCustom required />
           <Input label="Quantidade" type="number" name="quantidade" min={1} value={form.quantidade} onChange={handleChange} required />
           <Input label="Valor unitário (R$)" type="number" step="0.01" min={0} name="valor_unitario" value={form.valor_unitario} onChange={handleChange} required />
           <Input label="Observação" name="observacao" value={form.observacao} onChange={handleChange} />
@@ -158,11 +186,12 @@ export default function AbaCarcacas() {
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Quantidade</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Valor unitário</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Valor total</th>
+                <th className="text-center py-3 px-4 font-medium text-gray-500">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
-              {!loading && entradas.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Nenhuma entrada registrada ainda.</td></tr>}
+              {loading && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+              {!loading && entradas.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhuma entrada registrada ainda.</td></tr>}
               {entradas.map((e) => (
                 <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-gray-800">{formatDate(e.data_compra)}</td>
@@ -171,6 +200,14 @@ export default function AbaCarcacas() {
                   <td className="py-3 px-4 text-right text-gray-600">{e.quantidade}</td>
                   <td className="py-3 px-4 text-right text-gray-600">{formatMoney(e.valor_unitario)}</td>
                   <td className="py-3 px-4 text-right font-medium text-green-600">{formatMoney(e.valor_total)}</td>
+                  <td className="py-3 px-4">
+                    <div className="flex justify-center">
+                      <button onClick={() => excluir(e.id)} disabled={excluindoId === e.id}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50" title="Excluir">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
