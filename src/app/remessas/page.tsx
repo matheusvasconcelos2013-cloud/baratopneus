@@ -6,7 +6,15 @@ import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import FormRemessa from '@/components/FormRemessa';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
+import { getLocalDateString } from '@/lib/dateUtils';
 import toast from 'react-hot-toast';
+
+const PERIODOS = [
+  { value: '', label: '🗓️ Todo o período' },
+  { value: '7', label: 'Últimos 7 dias' },
+  { value: '30', label: 'Últimos 30 dias' },
+  { value: '365', label: 'Último 1 ano' },
+];
 
 interface RemessaRow {
   id: number;
@@ -26,11 +34,20 @@ export default function RemessasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingRemessa, setEditingRemessa] = useState<any>(null);
   const [filtroLoja, setFiltroLoja] = useState<string>('');
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>('');
   const [lojas, setLojas] = useState<any[]>([]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/login'); return; }
+
+      const { data: colaborador } = await supabase
+        .from('colaboradores')
+        .select('is_admin')
+        .ilike('email', session.user.email ?? '')
+        .single();
+      if (!colaborador?.is_admin) { router.push('/vendas'); return; }
+
       setUser(session.user);
       carregarLojas();
       carregar();
@@ -136,9 +153,15 @@ export default function RemessasPage() {
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
-  const remessasFiltradas = filtroLoja
-    ? remessas.filter(r => r.loja?.id === parseInt(filtroLoja))
-    : remessas;
+  const remessasFiltradas = remessas.filter((r) => {
+    if (filtroLoja && r.loja?.id !== parseInt(filtroLoja)) return false;
+    if (filtroPeriodo) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - parseInt(filtroPeriodo));
+      if (r.data_entrada < getLocalDateString(cutoff)) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -158,6 +181,12 @@ export default function RemessasPage() {
             <option value="">📍 Todas as Lojas</option>
             {lojas.map(loja => (
               <option key={loja.id} value={loja.id}>{loja.nome}</option>
+            ))}
+          </select>
+          <select value={filtroPeriodo} onChange={(e) => setFiltroPeriodo(e.target.value)}
+            className="px-4 py-2.5 rounded-lg text-sm border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+            {PERIODOS.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
             ))}
           </select>
         </div>
