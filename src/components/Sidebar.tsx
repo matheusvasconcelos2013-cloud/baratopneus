@@ -52,6 +52,11 @@ const shopeeMenuItem = {
   icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 11a2 2 0 01-2 2H6a2 2 0 01-2-2L5 9z" /></svg>
 };
 
+const producaoMenuItem = {
+  label: 'Produção', href: '/producao',
+  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 5.517a1 1 0 00.933 1.185l3.207.206a2 2 0 011.865 2.4l-1.4 6.526A2 2 0 0117.65 21H6.35a2 2 0 01-1.955-2.166l-1.4-6.526a2 2 0 011.865-2.4l3.207-.206A1 1 0 009 8.517L8 4z" /></svg>
+};
+
 export default function Sidebar({ user, onLogout }: SidebarProps) {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -78,8 +83,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
 
           if (colaborador?.is_admin) {
             setIsAdmin(true);
-            // Adiciona Dashboard no início e Shopee no fim do menu se for admin
-            setMenuItems([adminMenuItem, ...baseMenuItems, shopeeMenuItem]);
+            // Adiciona Dashboard no início e Produção/Shopee no fim do menu se for admin
+            setMenuItems([adminMenuItem, ...baseMenuItems, producaoMenuItem, shopeeMenuItem]);
           }
         }
       } catch (err) {

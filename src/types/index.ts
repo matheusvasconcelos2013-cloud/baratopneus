@@ -151,3 +151,94 @@ export interface ContaFinanceiro {
   referencia_id?: number;
   observacao?: string;
 }
+
+// ============================================================
+// Controle de Produção (carcaças, matéria-prima, lotes)
+// ============================================================
+
+export interface Material {
+  id: number;
+  nome: string;
+  unidade_padrao: string;
+  ativo?: boolean;
+}
+
+export interface EntradaCarcaca {
+  id: number;
+  data_compra: string;
+  fornecedor_id?: number;
+  medida: string;
+  quantidade: number;
+  valor_unitario: number;
+  valor_total: number;
+  observacao?: string;
+  criado_por?: number;
+  created_at: string;
+  fornecedor?: { id: number; nome: string } | null;
+}
+
+export interface EntradaMateriaPrima {
+  id: number;
+  material_id: number;
+  data_compra: string;
+  fornecedor_id?: number;
+  quantidade_comprada: number;
+  valor_unitario: number;
+  valor_total: number;
+  observacao?: string;
+  criado_por?: number;
+  created_at: string;
+  materiais?: { nome: string; unidade_padrao: string } | null;
+  fornecedor?: { id: number; nome: string } | null;
+}
+
+export interface LoteMaterialConsumido {
+  id?: number;
+  lote_id?: number;
+  material_id: number;
+  quantidade_consumida: number;
+  custo_unitario: number;
+  valor_total?: number;
+  material_nome?: string;
+  unidade?: string;
+}
+
+export interface LoteProducao {
+  id: number;
+  data_producao: string;
+  medida: string;
+  quantidade_carcacas_usadas: number;
+  custo_unitario_carcaca: number;
+  custo_carcacas: number;
+  quantidade_produzida: number;
+  loja_destino_id?: number;
+  observacao?: string;
+  criado_por?: number;
+  created_at: string;
+}
+
+export interface ResumoLoteProducao {
+  lote_id: number;
+  data_producao: string;
+  medida: string;
+  quantidade_carcacas_usadas: number;
+  quantidade_produzida: number;
+  quantidade_refugo: number;
+  custo_unitario_carcaca: number;
+  custo_carcacas: number;
+  custo_materiais: number;
+  custo_total: number;
+  custo_por_pneu: number;
+  loja_destino_id?: number;
+  loja_destino_nome?: string;
+}
+
+export interface ResumoProducaoMensal {
+  mes: string;
+  total_produzido: number;
+  total_refugo: number;
+  total_custo_carcacas: number;
+  total_custo_materiais: number;
+  total_investido: number;
+  custo_medio_por_pneu: number;
+}
