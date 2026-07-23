@@ -45,8 +45,15 @@ export default function RelatoriosPage() {
     setLoading(true);
     setPeriodo(p);
 
-    const dias = p === 'hoje' ? 1 : p === 'semana' ? 7 : p === 'mes' ? 30 : 365;
-    const dataInicio = getLocalDateString(new Date(Date.now() - dias * 24 * 60 * 60 * 1000));
+    let dataInicio: string;
+    if (p === 'mes') {
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      dataInicio = getLocalDateString(inicioMes);
+    } else {
+      const dias = p === 'hoje' ? 1 : p === 'semana' ? 7 : 365;
+      dataInicio = getLocalDateString(new Date(Date.now() - dias * 24 * 60 * 60 * 1000));
+    }
 
     const { data: vendas } = await supabase
       .from('vendas')
@@ -96,7 +103,7 @@ export default function RelatoriosPage() {
         </header>
 
         <div className="print:hidden bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-2">
-          {[{ k: 'hoje', l: 'Hoje' }, { k: 'semana', l: '7 dias' }, { k: 'mes', l: '30 dias' }, { k: 'ano', l: 'Último ano' }].map(i => (
+          {[{ k: 'hoje', l: 'Hoje' }, { k: 'semana', l: '7 dias' }, { k: 'mes', l: 'Mês' }, { k: 'ano', l: 'Último ano' }].map(i => (
             <button key={i.k} onClick={() => gerarRelatorio(i.k)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
           ))}

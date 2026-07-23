@@ -90,7 +90,8 @@ export default function ShopeePage() {
     const [ano, mes, dia] = v.data_venda.split('T')[0].split('-').map(Number);
     const data = new Date(ano, mes - 1, dia);
     if (periodo === 'semana') return data >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    return data >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const hoje = new Date();
+    return data.getFullYear() === hoje.getFullYear() && data.getMonth() === hoje.getMonth();
   });
 
   const faturamento = vendasFiltradas.reduce((a, v) => a + (v.valor_total || 0), 0);
@@ -133,7 +134,7 @@ export default function ShopeePage() {
           {[
             { k: 'hoje', l: 'Hoje' },
             { k: 'semana', l: '7 dias' },
-            { k: 'mes', l: '30 dias' },
+            { k: 'mes', l: 'Mês' },
             { k: 'todos', l: 'Todas' },
           ].map(i => (
             <button key={i.k} onClick={() => setPeriodo(i.k as any)}
