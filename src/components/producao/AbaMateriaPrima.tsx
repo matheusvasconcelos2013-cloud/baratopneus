@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Input, Select, TextArea, Button, formatMoney, formatDate } from '@/components/FormElements';
+import { Input, Select, TextArea, Button, formatDate } from '@/components/FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
 import { Material, EntradaMateriaPrima } from '@/types';
 import toast from 'react-hot-toast';
+
+// A aba Produção trabalha só com números inteiros (sem centavos/frações).
+function formatReais(value: number): string {
+  return Math.round(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
 
 interface CustoAtual {
   material_id: number;
@@ -70,8 +75,8 @@ export default function AbaMateriaPrima() {
       material_id: parseInt(form.material_id),
       data_compra: form.data_compra,
       fornecedor_id: form.fornecedor_id ? parseInt(form.fornecedor_id) : null,
-      quantidade_comprada: Number(form.quantidade_comprada),
-      valor_unitario: Number(form.valor_unitario),
+      quantidade_comprada: Math.round(Number(form.quantidade_comprada)),
+      valor_unitario: Math.round(Number(form.valor_unitario)),
       observacao: form.observacao || null,
     });
 
@@ -111,7 +116,7 @@ export default function AbaMateriaPrima() {
     <div className="space-y-6">
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 max-w-xs">
         <p className="text-sm text-gray-500">Total investido em insumos</p>
-        <p className="text-3xl font-bold text-purple-600 mt-1">{formatMoney(totalGeral)}</p>
+        <p className="text-3xl font-bold text-purple-600 mt-1">{formatReais(totalGeral)}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
@@ -123,9 +128,9 @@ export default function AbaMateriaPrima() {
           <Select label="Fornecedor" name="fornecedor_id" value={form.fornecedor_id} onChange={handleChange}
             options={fornecedores.map((f) => ({ value: f.id, label: f.nome }))} placeholder="Selecione ou deixe em branco" />
           <Input label={`Quantidade comprada${materialSelecionado ? ` (${materialSelecionado.unidade_padrao})` : ''}`}
-            type="number" step="0.01" min={0} name="quantidade_comprada" value={form.quantidade_comprada} onChange={handleChange} required />
+            type="number" step="1" min={0} name="quantidade_comprada" value={form.quantidade_comprada} onChange={handleChange} required />
           <Input label={`Valor unitário (R$ por ${materialSelecionado?.unidade_padrao || 'unidade'})`}
-            type="number" step="0.01" min={0} name="valor_unitario" value={form.valor_unitario} onChange={handleChange} required />
+            type="number" step="1" min={0} name="valor_unitario" value={form.valor_unitario} onChange={handleChange} required />
           <Input label="Observação" name="observacao" value={form.observacao} onChange={handleChange} />
         </div>
         <div className="flex justify-end">
@@ -150,7 +155,7 @@ export default function AbaMateriaPrima() {
                 {custosAtuais.map((c) => (
                   <tr key={c.material_id} className="border-b border-gray-100 last:border-0">
                     <td className="py-2.5 px-6 font-medium text-gray-700">{c.nome}</td>
-                    <td className="py-2.5 px-6 text-right text-gray-700">{formatMoney(c.custo_unitario_atual)} / {c.unidade_padrao}</td>
+                    <td className="py-2.5 px-6 text-right text-gray-700">{formatReais(c.custo_unitario_atual)} / {c.unidade_padrao}</td>
                     <td className="py-2.5 px-6 text-right text-gray-500">{formatDate(c.data_compra)}</td>
                   </tr>
                 ))}
@@ -180,9 +185,9 @@ export default function AbaMateriaPrima() {
                 <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-gray-800">{e.materiais?.nome}</td>
                   <td className="py-3 px-4 text-gray-600">{e.fornecedor?.nome || '-'}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">{formatMoney(e.valor_unitario)} / {e.materiais?.unidade_padrao}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">{e.quantidade_comprada}</td>
-                  <td className="py-3 px-4 text-right font-medium text-green-600">{formatMoney(e.valor_total)}</td>
+                  <td className="py-3 px-4 text-right text-gray-600">{formatReais(e.valor_unitario)} / {e.materiais?.unidade_padrao}</td>
+                  <td className="py-3 px-4 text-right text-gray-600">{Math.round(e.quantidade_comprada)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-green-600">{formatReais(e.valor_total)}</td>
                   <td className="py-3 px-4">
                     <div className="flex justify-center">
                       <button onClick={() => excluir(e.id)} disabled={excluindoId === e.id}

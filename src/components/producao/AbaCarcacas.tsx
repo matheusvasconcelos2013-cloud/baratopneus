@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Input, Select, TextArea, Button, formatMoney, formatDate } from '@/components/FormElements';
+import { Input, Select, TextArea, Button, formatDate } from '@/components/FormElements';
 import SearchSelect from '@/components/SearchSelect';
 import Modal from '@/components/Modal';
 import { getLocalDateString } from '@/lib/dateUtils';
 import { EntradaCarcaca } from '@/types';
 import toast from 'react-hot-toast';
+
+// A aba Produção trabalha só com números inteiros (sem centavos/frações).
+function formatReais(value: number): string {
+  return Math.round(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
 
 interface CustoMedio {
   medida: string;
@@ -90,7 +95,7 @@ export default function AbaCarcacas() {
     const aro = extrairAro(medida);
     if (!aro) return null;
     const preco = forn[`preco_carcaca_${aro}`];
-    return preco !== null && preco !== undefined ? String(preco) : null;
+    return preco !== null && preco !== undefined ? String(Math.round(Number(preco))) : null;
   };
 
   const handleFornecedorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -129,9 +134,9 @@ export default function AbaCarcacas() {
     const { data, error } = await supabase.from('fornecedores').insert({
       nome: novoFornecedor.nome.trim(),
       telefone: novoFornecedor.telefone || null,
-      preco_carcaca_13: novoFornecedor.preco_carcaca_13 ? Number(novoFornecedor.preco_carcaca_13) : null,
-      preco_carcaca_14: novoFornecedor.preco_carcaca_14 ? Number(novoFornecedor.preco_carcaca_14) : null,
-      preco_carcaca_15: novoFornecedor.preco_carcaca_15 ? Number(novoFornecedor.preco_carcaca_15) : null,
+      preco_carcaca_13: novoFornecedor.preco_carcaca_13 ? Math.round(Number(novoFornecedor.preco_carcaca_13)) : null,
+      preco_carcaca_14: novoFornecedor.preco_carcaca_14 ? Math.round(Number(novoFornecedor.preco_carcaca_14)) : null,
+      preco_carcaca_15: novoFornecedor.preco_carcaca_15 ? Math.round(Number(novoFornecedor.preco_carcaca_15)) : null,
     }).select('id,nome,telefone,preco_carcaca_13,preco_carcaca_14,preco_carcaca_15').single();
 
     if (error) {
@@ -161,8 +166,8 @@ export default function AbaCarcacas() {
       data_compra: form.data_compra,
       fornecedor_id: form.fornecedor_id ? parseInt(form.fornecedor_id) : null,
       medida: form.medida,
-      quantidade: Number(form.quantidade),
-      valor_unitario: Number(form.valor_unitario),
+      quantidade: Math.round(Number(form.quantidade)),
+      valor_unitario: Math.round(Number(form.valor_unitario)),
       observacao: form.observacao || null,
     });
 
@@ -208,7 +213,7 @@ export default function AbaCarcacas() {
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Valor total investido</p>
-          <p className="text-3xl font-bold text-purple-600 mt-1">{formatMoney(totalInvestido)}</p>
+          <p className="text-3xl font-bold text-purple-600 mt-1">{formatReais(totalInvestido)}</p>
         </div>
       </div>
 
@@ -221,8 +226,8 @@ export default function AbaCarcacas() {
             placeholder="Selecione ou deixe em branco" />
           <SearchSelect label="Medida (aro)" value={form.medida} onChange={handleMedidaChange}
             options={medidasEstoque.map((m) => ({ value: m, label: m }))} placeholder="Digite ou selecione do estoque" allowCustom required />
-          <Input label="Quantidade" type="number" name="quantidade" min={1} value={form.quantidade} onChange={handleChange} required />
-          <Input label="Valor unitário (R$)" type="number" step="0.01" min={0} name="valor_unitario" value={form.valor_unitario} onChange={handleChange} required />
+          <Input label="Quantidade" type="number" step="1" name="quantidade" min={1} value={form.quantidade} onChange={handleChange} required />
+          <Input label="Valor unitário (R$)" type="number" step="1" min={0} name="valor_unitario" value={form.valor_unitario} onChange={handleChange} required />
           <Input label="Observação" name="observacao" value={form.observacao} onChange={handleChange} />
         </div>
         <div className="flex justify-end">
@@ -238,9 +243,9 @@ export default function AbaCarcacas() {
             <p className="text-sm font-medium text-gray-700 mb-1">Preço por carcaça</p>
             <p className="text-xs text-gray-400 mb-2">Preenchido automaticamente ao lançar uma entrada com esse fornecedor e essa medida.</p>
             <div className="grid grid-cols-3 gap-4">
-              <Input label="Aro 13 (R$)" type="number" step="0.01" min={0} name="preco_carcaca_13" value={novoFornecedor.preco_carcaca_13} onChange={handleNovoFornecedorChange} />
-              <Input label="Aro 14 (R$)" type="number" step="0.01" min={0} name="preco_carcaca_14" value={novoFornecedor.preco_carcaca_14} onChange={handleNovoFornecedorChange} />
-              <Input label="Aro 15 (R$)" type="number" step="0.01" min={0} name="preco_carcaca_15" value={novoFornecedor.preco_carcaca_15} onChange={handleNovoFornecedorChange} />
+              <Input label="Aro 13 (R$)" type="number" step="1" min={0} name="preco_carcaca_13" value={novoFornecedor.preco_carcaca_13} onChange={handleNovoFornecedorChange} />
+              <Input label="Aro 14 (R$)" type="number" step="1" min={0} name="preco_carcaca_14" value={novoFornecedor.preco_carcaca_14} onChange={handleNovoFornecedorChange} />
+              <Input label="Aro 15 (R$)" type="number" step="1" min={0} name="preco_carcaca_15" value={novoFornecedor.preco_carcaca_15} onChange={handleNovoFornecedorChange} />
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
@@ -268,7 +273,7 @@ export default function AbaCarcacas() {
                 {custosMedios.map((c) => (
                   <tr key={c.medida} className="border-b border-gray-100 last:border-0">
                     <td className="py-2.5 px-6 font-medium text-gray-700">{c.medida}</td>
-                    <td className="py-2.5 px-6 text-right text-gray-700">{formatMoney(c.custo_medio_unitario)}</td>
+                    <td className="py-2.5 px-6 text-right text-gray-700">{formatReais(c.custo_medio_unitario)}</td>
                     <td className="py-2.5 px-6 text-right text-gray-500">{c.total_comprado}</td>
                     <td className="py-2.5 px-6 text-right text-gray-500">{formatDate(c.ultima_compra)}</td>
                   </tr>
@@ -302,8 +307,8 @@ export default function AbaCarcacas() {
                   <td className="py-3 px-4 text-gray-600">{e.fornecedor?.nome || '-'}</td>
                   <td className="py-3 px-4 text-gray-600">{e.medida}</td>
                   <td className="py-3 px-4 text-right text-gray-600">{e.quantidade}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">{formatMoney(e.valor_unitario)}</td>
-                  <td className="py-3 px-4 text-right font-medium text-green-600">{formatMoney(e.valor_total)}</td>
+                  <td className="py-3 px-4 text-right text-gray-600">{formatReais(e.valor_unitario)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-green-600">{formatReais(e.valor_total)}</td>
                   <td className="py-3 px-4">
                     <div className="flex justify-center">
                       <button onClick={() => excluir(e.id)} disabled={excluindoId === e.id}

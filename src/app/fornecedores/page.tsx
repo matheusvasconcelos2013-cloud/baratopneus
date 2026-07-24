@@ -48,9 +48,9 @@ export default function FornecedoresPage() {
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return; }
     const payload = {
       ...form,
-      preco_carcaca_13: form.preco_carcaca_13 === '' ? null : Number(form.preco_carcaca_13),
-      preco_carcaca_14: form.preco_carcaca_14 === '' ? null : Number(form.preco_carcaca_14),
-      preco_carcaca_15: form.preco_carcaca_15 === '' ? null : Number(form.preco_carcaca_15),
+      preco_carcaca_13: form.preco_carcaca_13 === '' ? null : Math.round(Number(form.preco_carcaca_13)),
+      preco_carcaca_14: form.preco_carcaca_14 === '' ? null : Math.round(Number(form.preco_carcaca_14)),
+      preco_carcaca_15: form.preco_carcaca_15 === '' ? null : Math.round(Number(form.preco_carcaca_15)),
     };
     try {
       if (editing) { await supabase.from('fornecedores').update(payload).eq('id', editing.id); toast.success('Atualizado!'); }
@@ -95,9 +95,9 @@ export default function FornecedoresPage() {
                 <div className="text-sm text-gray-500 mt-2 pt-2 border-t border-gray-100">
                   <p className="text-xs text-gray-400 mb-0.5">Preço por carcaça</p>
                   <p>
-                    {item.preco_carcaca_13 && <span className="mr-3">Aro 13: R$ {Number(item.preco_carcaca_13).toFixed(2)}</span>}
-                    {item.preco_carcaca_14 && <span className="mr-3">Aro 14: R$ {Number(item.preco_carcaca_14).toFixed(2)}</span>}
-                    {item.preco_carcaca_15 && <span>Aro 15: R$ {Number(item.preco_carcaca_15).toFixed(2)}</span>}
+                    {item.preco_carcaca_13 && <span className="mr-3">Aro 13: R$ {Math.round(Number(item.preco_carcaca_13))}</span>}
+                    {item.preco_carcaca_14 && <span className="mr-3">Aro 14: R$ {Math.round(Number(item.preco_carcaca_14))}</span>}
+                    {item.preco_carcaca_15 && <span>Aro 15: R$ {Math.round(Number(item.preco_carcaca_15))}</span>}
                   </p>
                 </div>
               )}
@@ -127,9 +127,9 @@ export default function FornecedoresPage() {
               <p className="text-sm font-medium text-gray-700 mb-1">Preço por carcaça</p>
               <p className="text-xs text-gray-400 mb-2">Usado para pré-preencher o valor ao lançar entrada de carcaças na produção.</p>
               <div className="grid grid-cols-3 gap-4">
-                <Input label="Aro 13 (R$)" type="number" step="0.01" min={0} value={form.preco_carcaca_13} onChange={(e) => setForm({ ...form, preco_carcaca_13: e.target.value })} />
-                <Input label="Aro 14 (R$)" type="number" step="0.01" min={0} value={form.preco_carcaca_14} onChange={(e) => setForm({ ...form, preco_carcaca_14: e.target.value })} />
-                <Input label="Aro 15 (R$)" type="number" step="0.01" min={0} value={form.preco_carcaca_15} onChange={(e) => setForm({ ...form, preco_carcaca_15: e.target.value })} />
+                <Input label="Aro 13 (R$)" type="number" step="1" min={0} value={form.preco_carcaca_13} onChange={(e) => setForm({ ...form, preco_carcaca_13: e.target.value })} />
+                <Input label="Aro 14 (R$)" type="number" step="1" min={0} value={form.preco_carcaca_14} onChange={(e) => setForm({ ...form, preco_carcaca_14: e.target.value })} />
+                <Input label="Aro 15 (R$)" type="number" step="1" min={0} value={form.preco_carcaca_15} onChange={(e) => setForm({ ...form, preco_carcaca_15: e.target.value })} />
               </div>
             </div>
             <TextArea label="Observação" value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} />
