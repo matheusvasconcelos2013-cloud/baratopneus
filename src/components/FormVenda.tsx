@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Modal from './Modal';
 import { Input, Select, TextArea, Button, formatMoney } from './FormElements';
 import toast from 'react-hot-toast';
-import { getLocalDateString } from '@/lib/dateUtils';
+import { getLocalDateString, formatDateTimeForDB } from '@/lib/dateUtils';
 import { Produto, Colaborador, Cliente, Venda, VendaItem } from '@/types';
 
 interface FormVendaProps {
@@ -268,6 +268,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           mensagem: mensagemNotificacao,
           loja_id: lojaId,
           referencia_id: vendaId,
+          created_at: formatDateTimeForDB(),
         }]);
         if (erroNotificacao) console.error('Falha ao criar notificação da venda:', erroNotificacao);
 
