@@ -8,14 +8,16 @@ import AbaResumo from '@/components/producao/AbaResumo';
 import AbaCarcacas from '@/components/producao/AbaCarcacas';
 import AbaMateriaPrima from '@/components/producao/AbaMateriaPrima';
 import AbaLotes from '@/components/producao/AbaLotes';
+import AbaFuncionarios from '@/components/producao/AbaFuncionarios';
 
-type Aba = 'resumo' | 'carcacas' | 'materia-prima' | 'lotes';
+type Aba = 'resumo' | 'carcacas' | 'materia-prima' | 'lotes' | 'funcionarios';
 
 const abas: { id: Aba; label: string }[] = [
   { id: 'resumo', label: 'Resumo' },
   { id: 'carcacas', label: 'Carcaças' },
   { id: 'materia-prima', label: 'Matéria-Prima' },
   { id: 'lotes', label: 'Produção' },
+  { id: 'funcionarios', label: 'Funcionários' },
 ];
 
 export default function ProducaoPage() {
@@ -77,6 +79,7 @@ export default function ProducaoPage() {
         {abaAtiva === 'carcacas' && <AbaCarcacas />}
         {abaAtiva === 'materia-prima' && <AbaMateriaPrima />}
         {abaAtiva === 'lotes' && <AbaLotes />}
+        {abaAtiva === 'funcionarios' && <AbaFuncionarios />}
       </main>
     </div>
   );

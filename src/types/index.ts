@@ -242,3 +242,30 @@ export interface ResumoProducaoMensal {
   total_investido: number;
   custo_medio_por_pneu: number;
 }
+
+export interface FuncionarioProducao {
+  id: number;
+  nome: string;
+  ativo?: boolean;
+}
+
+export interface PagamentoFuncionario {
+  id: number;
+  funcionario_id: number;
+  data_pagamento: string;
+  tipo: 'Pagamento' | 'Vale';
+  valor: number;
+  observacao?: string;
+  criado_por?: number;
+  created_at: string;
+  funcionario?: { nome: string } | null;
+}
+
+export interface ResumoPagamentoFuncionario {
+  funcionario_id: number;
+  nome: string;
+  total_pagamentos: number;
+  total_vales: number;
+  total_geral: number;
+  ultimo_lancamento: string | null;
+}
