@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Input, Select, TextArea, Button, formatMoney, formatDate } from '@/components/FormElements';
 import SearchSelect from '@/components/SearchSelect';
+import Modal from '@/components/Modal';
 import { getLocalDateString } from '@/lib/dateUtils';
 import { EntradaCarcaca } from '@/types';
 import toast from 'react-hot-toast';
@@ -19,6 +20,16 @@ interface CustoMedio {
 function extrairMedida(nome: string): string {
   return nome.replace(/^pneus?\s+(remolds?|usados?)\b\s*/i, '').trim();
 }
+
+// Extrai o aro (13, 14 ou 15) do final da medida, ex: "175/70 R13" -> "13"
+function extrairAro(medida: string): '13' | '14' | '15' | null {
+  const numeros = medida.match(/\d+/g);
+  if (!numeros || numeros.length === 0) return null;
+  const ultimo = numeros[numeros.length - 1];
+  return ultimo === '13' || ultimo === '14' || ultimo === '15' ? ultimo : null;
+}
+
+const NOVO_FORNECEDOR = '__novo__';
 
 export default function AbaCarcacas() {
   const [entradas, setEntradas] = useState<EntradaCarcaca[]>([]);
@@ -38,12 +49,18 @@ export default function AbaCarcacas() {
     observacao: '',
   });
 
+  const [showFornecedorForm, setShowFornecedorForm] = useState(false);
+  const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
+  const [novoFornecedor, setNovoFornecedor] = useState({
+    nome: '', telefone: '', preco_carcaca_13: '', preco_carcaca_14: '', preco_carcaca_15: '',
+  });
+
   const carregar = async () => {
     setLoading(true);
     const [{ data: ents, error }, { data: custos }, { data: forns }, { data: prods }] = await Promise.all([
       supabase.from('entrada_carcacas').select('*, fornecedor:fornecedores(id,nome)').order('data_compra', { ascending: false }),
       supabase.from('custo_medio_carcaca_por_medida').select('*').order('medida'),
-      supabase.from('fornecedores').select('id,nome').order('nome'),
+      supabase.from('fornecedores').select('id,nome,telefone,preco_carcaca_13,preco_carcaca_14,preco_carcaca_15').order('nome'),
       supabase.from('produtos').select('nome').eq('ativo', true).or('nome.ilike.%remold%,nome.ilike.%usado%'),
     ]);
     if (error) toast.error(error.message);
@@ -64,6 +81,72 @@ export default function AbaCarcacas() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Busca o preço de carcaça cadastrado no fornecedor para o aro da medida escolhida.
+  const precoDoFornecedor = (fornecedorId: string, medida: string): string | null => {
+    const forn = fornecedores.find((f) => String(f.id) === String(fornecedorId));
+    if (!forn) return null;
+    const aro = extrairAro(medida);
+    if (!aro) return null;
+    const preco = forn[`preco_carcaca_${aro}`];
+    return preco !== null && preco !== undefined ? String(preco) : null;
+  };
+
+  const handleFornecedorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value === NOVO_FORNECEDOR) {
+      setNovoFornecedor({ nome: '', telefone: '', preco_carcaca_13: '', preco_carcaca_14: '', preco_carcaca_15: '' });
+      setShowFornecedorForm(true);
+      return;
+    }
+    setForm((prev) => {
+      const preco = precoDoFornecedor(value, prev.medida);
+      return { ...prev, fornecedor_id: value, valor_unitario: preco ?? prev.valor_unitario };
+    });
+  };
+
+  const handleMedidaChange = (val: string | number) => {
+    setForm((prev) => {
+      const medida = String(val);
+      const preco = precoDoFornecedor(prev.fornecedor_id, medida);
+      return { ...prev, medida, valor_unitario: preco ?? prev.valor_unitario };
+    });
+  };
+
+  const handleNovoFornecedorChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNovoFornecedor((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const salvarNovoFornecedor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoFornecedor.nome.trim()) {
+      toast.error('Informe o nome do fornecedor.');
+      return;
+    }
+    setSalvandoFornecedor(true);
+    const { data, error } = await supabase.from('fornecedores').insert({
+      nome: novoFornecedor.nome.trim(),
+      telefone: novoFornecedor.telefone || null,
+      preco_carcaca_13: novoFornecedor.preco_carcaca_13 ? Number(novoFornecedor.preco_carcaca_13) : null,
+      preco_carcaca_14: novoFornecedor.preco_carcaca_14 ? Number(novoFornecedor.preco_carcaca_14) : null,
+      preco_carcaca_15: novoFornecedor.preco_carcaca_15 ? Number(novoFornecedor.preco_carcaca_15) : null,
+    }).select('id,nome,telefone,preco_carcaca_13,preco_carcaca_14,preco_carcaca_15').single();
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Fornecedor cadastrado!');
+      const novaLista = [...fornecedores, data].sort((a, b) => a.nome.localeCompare(b.nome));
+      setFornecedores(novaLista);
+      setShowFornecedorForm(false);
+      setForm((prev) => {
+        const preco = precoDoFornecedor(String(data.id), prev.medida);
+        return { ...prev, fornecedor_id: String(data.id), valor_unitario: preco ?? prev.valor_unitario };
+      });
+    }
+    setSalvandoFornecedor(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,9 +216,10 @@ export default function AbaCarcacas() {
         <h3 className="font-semibold text-gray-800">Nova entrada de carcaças</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <Input label="Data da compra" type="date" name="data_compra" value={form.data_compra} onChange={handleChange} required />
-          <Select label="Fornecedor" name="fornecedor_id" value={form.fornecedor_id} onChange={handleChange}
-            options={fornecedores.map((f) => ({ value: f.id, label: f.nome }))} placeholder="Selecione ou deixe em branco" />
-          <SearchSelect label="Medida (aro)" value={form.medida} onChange={(val) => setForm({ ...form, medida: String(val) })}
+          <Select label="Fornecedor" name="fornecedor_id" value={form.fornecedor_id} onChange={handleFornecedorChange}
+            options={[...fornecedores.map((f) => ({ value: f.id, label: f.nome })), { value: NOVO_FORNECEDOR, label: '+ Cadastrar novo fornecedor' }]}
+            placeholder="Selecione ou deixe em branco" />
+          <SearchSelect label="Medida (aro)" value={form.medida} onChange={handleMedidaChange}
             options={medidasEstoque.map((m) => ({ value: m, label: m }))} placeholder="Digite ou selecione do estoque" allowCustom required />
           <Input label="Quantidade" type="number" name="quantidade" min={1} value={form.quantidade} onChange={handleChange} required />
           <Input label="Valor unitário (R$)" type="number" step="0.01" min={0} name="valor_unitario" value={form.valor_unitario} onChange={handleChange} required />
@@ -145,6 +229,26 @@ export default function AbaCarcacas() {
           <Button type="submit" loading={salvando}>Registrar entrada</Button>
         </div>
       </form>
+
+      <Modal isOpen={showFornecedorForm} onClose={() => setShowFornecedorForm(false)} title="Novo Fornecedor" size="md">
+        <form onSubmit={salvarNovoFornecedor} className="space-y-4">
+          <Input label="Nome" name="nome" value={novoFornecedor.nome} onChange={handleNovoFornecedorChange} required />
+          <Input label="Telefone" name="telefone" value={novoFornecedor.telefone} onChange={handleNovoFornecedorChange} />
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1">Preço por carcaça</p>
+            <p className="text-xs text-gray-400 mb-2">Preenchido automaticamente ao lançar uma entrada com esse fornecedor e essa medida.</p>
+            <div className="grid grid-cols-3 gap-4">
+              <Input label="Aro 13 (R$)" type="number" step="0.01" min={0} name="preco_carcaca_13" value={novoFornecedor.preco_carcaca_13} onChange={handleNovoFornecedorChange} />
+              <Input label="Aro 14 (R$)" type="number" step="0.01" min={0} name="preco_carcaca_14" value={novoFornecedor.preco_carcaca_14} onChange={handleNovoFornecedorChange} />
+              <Input label="Aro 15 (R$)" type="number" step="0.01" min={0} name="preco_carcaca_15" value={novoFornecedor.preco_carcaca_15} onChange={handleNovoFornecedorChange} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={() => setShowFornecedorForm(false)}>Cancelar</Button>
+            <Button type="submit" loading={salvandoFornecedor}>Cadastrar</Button>
+          </div>
+        </form>
+      </Modal>
 
       {custosMedios.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

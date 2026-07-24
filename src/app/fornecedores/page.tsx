@@ -15,7 +15,7 @@ export default function FornecedoresPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ nome: '', contato: '', telefone: '', celular: '', email: '', endereco: '', cnpj: '', observacao: '' });
+  const [form, setForm] = useState({ nome: '', contato: '', telefone: '', celular: '', email: '', endereco: '', cnpj: '', observacao: '', preco_carcaca_13: '', preco_carcaca_14: '', preco_carcaca_15: '' });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,15 +31,30 @@ export default function FornecedoresPage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
-  const openNew = () => { setEditing(null); setForm({ nome: '', contato: '', telefone: '', celular: '', email: '', endereco: '', cnpj: '', observacao: '' }); setShowForm(true); };
-  const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true); };
+  const openNew = () => { setEditing(null); setForm({ nome: '', contato: '', telefone: '', celular: '', email: '', endereco: '', cnpj: '', observacao: '', preco_carcaca_13: '', preco_carcaca_14: '', preco_carcaca_15: '' }); setShowForm(true); };
+  const openEdit = (item: any) => {
+    setEditing(item);
+    setForm({
+      ...item,
+      preco_carcaca_13: item.preco_carcaca_13 ?? '',
+      preco_carcaca_14: item.preco_carcaca_14 ?? '',
+      preco_carcaca_15: item.preco_carcaca_15 ?? '',
+    });
+    setShowForm(true);
+  };
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return; }
+    const payload = {
+      ...form,
+      preco_carcaca_13: form.preco_carcaca_13 === '' ? null : Number(form.preco_carcaca_13),
+      preco_carcaca_14: form.preco_carcaca_14 === '' ? null : Number(form.preco_carcaca_14),
+      preco_carcaca_15: form.preco_carcaca_15 === '' ? null : Number(form.preco_carcaca_15),
+    };
     try {
-      if (editing) { await supabase.from('fornecedores').update(form).eq('id', editing.id); toast.success('Atualizado!'); }
-      else { await supabase.from('fornecedores').insert([form]); toast.success('Cadastrado!'); }
+      if (editing) { await supabase.from('fornecedores').update(payload).eq('id', editing.id); toast.success('Atualizado!'); }
+      else { await supabase.from('fornecedores').insert([payload]); toast.success('Cadastrado!'); }
       setShowForm(false); carregar();
     } catch (err: any) { toast.error(err.message); }
   };
@@ -76,6 +91,16 @@ export default function FornecedoresPage() {
                 {item.email && <p>✉️ {item.email}</p>}
                 {item.cnpj && <p>📄 {item.cnpj}</p>}
               </div>
+              {(item.preco_carcaca_13 || item.preco_carcaca_14 || item.preco_carcaca_15) && (
+                <div className="text-sm text-gray-500 mt-2 pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-400 mb-0.5">Preço por carcaça</p>
+                  <p>
+                    {item.preco_carcaca_13 && <span className="mr-3">Aro 13: R$ {Number(item.preco_carcaca_13).toFixed(2)}</span>}
+                    {item.preco_carcaca_14 && <span className="mr-3">Aro 14: R$ {Number(item.preco_carcaca_14).toFixed(2)}</span>}
+                    {item.preco_carcaca_15 && <span>Aro 15: R$ {Number(item.preco_carcaca_15).toFixed(2)}</span>}
+                  </p>
+                </div>
+              )}
               <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
                 <button onClick={() => openEdit(item)} className="text-sm text-blue-600 hover:text-blue-700 font-medium">Editar</button>
                 <button onClick={() => excluir(item.id, item.nome)} className="text-sm text-red-600 hover:text-red-700 font-medium">Excluir</button>
@@ -97,6 +122,15 @@ export default function FornecedoresPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input label="CNPJ" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
               <Input label="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1">Preço por carcaça</p>
+              <p className="text-xs text-gray-400 mb-2">Usado para pré-preencher o valor ao lançar entrada de carcaças na produção.</p>
+              <div className="grid grid-cols-3 gap-4">
+                <Input label="Aro 13 (R$)" type="number" step="0.01" min={0} value={form.preco_carcaca_13} onChange={(e) => setForm({ ...form, preco_carcaca_13: e.target.value })} />
+                <Input label="Aro 14 (R$)" type="number" step="0.01" min={0} value={form.preco_carcaca_14} onChange={(e) => setForm({ ...form, preco_carcaca_14: e.target.value })} />
+                <Input label="Aro 15 (R$)" type="number" step="0.01" min={0} value={form.preco_carcaca_15} onChange={(e) => setForm({ ...form, preco_carcaca_15: e.target.value })} />
+              </div>
             </div>
             <TextArea label="Observação" value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} />
             <div className="flex justify-end gap-3 pt-4 border-t">
