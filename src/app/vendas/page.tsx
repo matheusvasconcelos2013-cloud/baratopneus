@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import FormVenda from '@/components/FormVenda';
 import ReciboVenda from '@/components/ReciboVenda';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
+import { getLocalDateString } from '@/lib/dateUtils';
 import toast from 'react-hot-toast';
 
 interface VendaRow {
@@ -198,19 +199,15 @@ export default function VendasPage() {
     }
   };
 
-  // Ancorado em UTC-3 fixo (Brasil não usa mais horário de verão), em vez do
-  // fuso horário local do dispositivo que está vendo a página — senão "hoje"
-  // pode cair num dia diferente do que foi realmente registrado nas vendas
-  // sempre que o computador/celular de quem acessa não estiver no fuso do Brasil.
-  const hojeBrasil = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  const hojeLocal = `${hojeBrasil.getUTCFullYear()}-${String(hojeBrasil.getUTCMonth() + 1).padStart(2, '0')}-${String(hojeBrasil.getUTCDate()).padStart(2, '0')}`;
+  const hojeLocal = getLocalDateString();
+  const [anoHoje, mesHoje, diaHoje] = hojeLocal.split('-').map(Number);
 
   const vendasFiltradas = vendas.filter(v => {
     if (periodo === 'hoje') return v.data_venda === hojeLocal;
     const [ano, mes, dia] = v.data_venda.split('T')[0].split('-').map(Number);
     const dataUTC = Date.UTC(ano, mes - 1, dia);
-    if (periodo === 'semana') return dataUTC >= Date.UTC(hojeBrasil.getUTCFullYear(), hojeBrasil.getUTCMonth(), hojeBrasil.getUTCDate() - 7);
-    if (periodo === 'mes') return ano === hojeBrasil.getUTCFullYear() && (mes - 1) === hojeBrasil.getUTCMonth();
+    if (periodo === 'semana') return dataUTC >= Date.UTC(anoHoje, mesHoje - 1, diaHoje - 7);
+    if (periodo === 'mes') return ano === anoHoje && mes === mesHoje;
     return true;
   });
 

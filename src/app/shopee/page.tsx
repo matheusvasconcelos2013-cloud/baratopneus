@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import { formatMoney, formatDate } from '@/components/FormElements';
+import { getLocalDateString } from '@/lib/dateUtils';
 
 interface VendaItemRow {
   quantidade: number;
@@ -79,19 +80,16 @@ export default function ShopeePage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
-  const hojeLocal = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
+  const hojeLocal = getLocalDateString();
+  const [anoHoje, mesHoje, diaHoje] = hojeLocal.split('-').map(Number);
 
   const vendasFiltradas = vendas.filter(v => {
     if (periodo === 'todos') return true;
     if (periodo === 'hoje') return v.data_venda === hojeLocal;
     const [ano, mes, dia] = v.data_venda.split('T')[0].split('-').map(Number);
-    const data = new Date(ano, mes - 1, dia);
-    if (periodo === 'semana') return data >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const hoje = new Date();
-    return data.getFullYear() === hoje.getFullYear() && data.getMonth() === hoje.getMonth();
+    const dataUTC = Date.UTC(ano, mes - 1, dia);
+    if (periodo === 'semana') return dataUTC >= Date.UTC(anoHoje, mesHoje - 1, diaHoje - 7);
+    return ano === anoHoje && mes === mesHoje;
   });
 
   const faturamento = vendasFiltradas.reduce((a, v) => a + (v.valor_total || 0), 0);
