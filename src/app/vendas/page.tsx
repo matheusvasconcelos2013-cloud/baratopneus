@@ -89,7 +89,7 @@ export default function VendasPage() {
   while (temMais) {
     let query = supabase
       .from('vendas')
-      .select('*, cliente:clientes(nome), vendedor:colaboradores(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
+      .select('*, cliente:clientes(nome), vendedor:colaboradores!vendas_vendedor_id_fkey(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
       .order('data_venda', { ascending: false })
       .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
 
