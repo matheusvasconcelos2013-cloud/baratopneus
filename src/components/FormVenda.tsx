@@ -514,11 +514,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           </div>
 
           <div className="flex flex-col gap-2 pt-3 border-t border-gray-200">
-            <span className="text-sm text-gray-600">Total Vendas: <span className="font-medium text-blue-600">{formatMoney(calcularTotalVendas())}</span></span>
             {contarGarantias() > 0 && (
               <span className="text-sm text-red-600">Garantia: -{formatMoney(contarGarantias() * 100)}</span>
             )}
-            <span className="text-lg font-bold text-gray-800">Lucro Final: {formatMoney(calcularLucro())}</span>
+            <span className="text-lg font-bold text-gray-800">Valor Final: {formatMoney(calcularTotalVendas())}</span>
           </div>
         </div>
 

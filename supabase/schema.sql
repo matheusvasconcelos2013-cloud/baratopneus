@@ -166,6 +166,42 @@ CREATE TABLE IF NOT EXISTS vendas (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- As policies de RLS de vendas (vendas_select/insert/update/delete) e as
+-- funções auxiliares eh_admin()/meu_colaborador_id()/sou_colaborador_ativo()
+-- já existiam em produção mas nunca foram registradas neste arquivo.
+-- Registrado aqui apenas o que foi adicionado para corrigir o 403 ao
+-- registrar uma venda para um vendedor diferente de quem está logado:
+-- vendas_insert permite qualquer colaborador ativo inserir para qualquer
+-- vendedor_id, mas vendas_select só liberava ver a própria venda
+-- (vendedor_id = meu_colaborador_id() ou admin) — o .insert().select() do
+-- PostgREST falhava ao ler de volta a linha recém-criada nesse caso e a
+-- transação inteira era revertida.
+ALTER TABLE vendas ADD COLUMN IF NOT EXISTS criado_por INTEGER REFERENCES colaboradores(id);
+
+CREATE OR REPLACE FUNCTION public.set_vendas_criado_por()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  NEW.criado_por := meu_colaborador_id();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_vendas_criado_por ON vendas;
+CREATE TRIGGER trg_vendas_criado_por
+  BEFORE INSERT ON vendas
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_vendas_criado_por();
+
+DROP POLICY IF EXISTS vendas_select ON vendas;
+CREATE POLICY vendas_select ON vendas
+  FOR SELECT
+  TO authenticated
+  USING (eh_admin() OR vendedor_id = meu_colaborador_id() OR criado_por = meu_colaborador_id());
+
 -- 11. ITENS DA VENDA
 CREATE TABLE IF NOT EXISTS vendas_itens (
   id SERIAL PRIMARY KEY,
