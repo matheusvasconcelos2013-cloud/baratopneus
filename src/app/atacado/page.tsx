@@ -4,18 +4,23 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
-import { formatMoney } from '@/components/FormElements';
-import { Produto } from '@/types';
+import FormVendaAtacado from '@/components/FormVendaAtacado';
+import { Button, formatMoney, formatDate } from '@/components/FormElements';
+import { VendaAtacado } from '@/types';
 import toast from 'react-hot-toast';
+
+interface VendaAtacadoComItens extends Omit<VendaAtacado, 'itens'> {
+  itens: { medida: string; quantidade: number }[];
+}
 
 export default function AtacadoPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [vendas, setVendas] = useState<VendaAtacadoComItens[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [salvandoId, setSalvandoId] = useState<number | null>(null);
-  const [valores, setValores] = useState<Record<number, string>>({});
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<VendaAtacado | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,37 +33,28 @@ export default function AtacadoPage() {
   const carregar = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('produtos')
-      .select('*')
-      .eq('tipo', 'Produto')
-      .order('nome');
+      .from('vendas_atacado')
+      .select('*, itens:vendas_atacado_itens(medida, quantidade)')
+      .order('data_venda', { ascending: false })
+      .order('id', { ascending: false });
     if (error) { toast.error(error.message); setLoading(false); return; }
-    setProdutos(data || []);
-    const inicial: Record<number, string> = {};
-    (data || []).forEach(p => { inicial[p.id] = String(p.preco_atacado ?? 0); });
-    setValores(inicial);
+    setVendas((data as any) || []);
     setLoading(false);
   };
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
-  const salvarPrecoAtacado = async (produto: Produto) => {
-    const novoValor = parseFloat(valores[produto.id]);
-    if (isNaN(novoValor) || novoValor < 0) { toast.error('Valor inválido'); return; }
-    if (novoValor === (produto.preco_atacado || 0)) return;
-
-    setSalvandoId(produto.id);
-    const { error } = await supabase.from('produtos').update({ preco_atacado: novoValor }).eq('id', produto.id);
-    setSalvandoId(null);
-
+  const excluir = async (id: number, comprador: string) => {
+    if (!confirm(`Excluir a venda para "${comprador}"?`)) return;
+    const { error } = await supabase.from('vendas_atacado').delete().eq('id', id);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Preço de atacado de "${produto.nome}" atualizado`);
-    setProdutos(prev => prev.map(p => p.id === produto.id ? { ...p, preco_atacado: novoValor } : p));
+    toast.success('Venda excluída');
+    carregar();
   };
 
-  const filtered = produtos.filter(p =>
-    !search || p.nome.toLowerCase().includes(search.toLowerCase()) || (p.codigo || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const totalPneus = (v: VendaAtacadoComItens) => (v.itens || []).reduce((acc, i) => acc + (i.quantidade || 0), 0);
+
+  const filtered = vendas.filter(v => !search || v.comprador.toLowerCase().includes(search.toLowerCase()));
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
@@ -69,12 +65,13 @@ export default function AtacadoPage() {
         <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">🏭 Atacado</h1>
-            <p className="text-gray-500 mt-1">Preços especiais para venda por atacado — por sermos fábrica</p>
+            <p className="text-gray-500 mt-1">{vendas.length} vendas registradas — pedidos vendidos direto de fábrica</p>
           </div>
+          <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Nova Venda</Button>
         </header>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <input type="text" placeholder="🔍 Buscar produto..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="🔍 Buscar por comprador..." value={search} onChange={e => setSearch(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
 
@@ -83,53 +80,44 @@ export default function AtacadoPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Código</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Nome</th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Preço Varejo</th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Preço Atacado</th>
-                  <th className="text-center py-3 px-4 text-sm font-medium text-gray-500"></th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Data</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Comprador</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Pneus</th>
+                  <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Qtd. Total</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Frete</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Valor Total</th>
+                  <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(p => {
-                  const alterado = parseFloat(valores[p.id] ?? '0') !== (p.preco_atacado || 0);
-                  return (
-                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-600">{p.codigo || '-'}</td>
-                      <td className="py-3 px-4 text-sm font-medium text-gray-800">{p.nome}</td>
-                      <td className="py-3 px-4 text-sm text-right text-gray-500">{formatMoney(p.preco_venda || 0)}</td>
-                      <td className="py-3 px-4 text-right">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          value={valores[p.id] ?? ''}
-                          onChange={e => setValores(prev => ({ ...prev, [p.id]: e.target.value }))}
-                          onBlur={() => salvarPrecoAtacado(p)}
-                          className="w-32 text-right px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-orange-600 font-medium"
-                        />
-                      </td>
-                      <td className="py-3 px-4 text-center w-10">
-                        {salvandoId === p.id && (
-                          <svg className="animate-spin h-4 w-4 text-blue-600 mx-auto" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
-                        )}
-                        {salvandoId !== p.id && alterado && (
-                          <span className="text-xs text-amber-600">não salvo</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filtered.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhum produto encontrado</td></tr>}
+                {filtered.map(v => (
+                  <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm text-gray-600">{v.data_venda ? formatDate(v.data_venda) : '-'}</td>
+                    <td className="py-3 px-4 text-sm font-medium text-gray-800">{v.comprador}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">
+                      {(v.itens || []).map(i => `${i.quantidade}x ${i.medida}`).join(', ') || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-center text-gray-600">{totalPneus(v)}</td>
+                    <td className="py-3 px-4 text-sm text-right text-gray-600">{formatMoney(v.frete || 0)}</td>
+                    <td className="py-3 px-4 text-sm text-right text-green-600 font-medium">{formatMoney(v.valor_total || 0)}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex justify-center gap-2">
+                        <button onClick={() => { const { itens, ...vendaSemItens } = v; setEditing(vendaSemItens); setShowForm(true); }}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                        <button onClick={() => excluir(v.id, v.comprador)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhuma venda no atacado registrada</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 mt-4">💡 Os preços de atacado são editados diretamente nesta tela: altere o valor e clique fora do campo para salvar.</p>
+        <FormVendaAtacado isOpen={showForm} onClose={() => { setShowForm(false); setEditing(null); }}
+          onSaved={carregar} venda={editing} />
       </main>
     </div>
   );

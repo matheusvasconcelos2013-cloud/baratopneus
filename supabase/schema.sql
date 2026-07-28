@@ -345,6 +345,42 @@ CREATE POLICY "Usuários autenticados podem gerenciar suas inscrições push"
   USING (true)
   WITH CHECK (true);
 
+-- 18. TABELA DE VENDAS NO ATACADO (pedidos vendidos direto de fábrica)
+CREATE TABLE IF NOT EXISTS vendas_atacado (
+  id SERIAL PRIMARY KEY,
+  comprador VARCHAR(300) NOT NULL,
+  data_venda DATE DEFAULT CURRENT_DATE,
+  frete DECIMAL(10,2) DEFAULT 0,
+  valor_total DECIMAL(10,2) DEFAULT 0,
+  observacao TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 19. ITENS DA VENDA NO ATACADO (quantidade e medida de cada pneu, preço editável por pedido)
+CREATE TABLE IF NOT EXISTS vendas_atacado_itens (
+  id SERIAL PRIMARY KEY,
+  venda_atacado_id INTEGER REFERENCES vendas_atacado(id) ON DELETE CASCADE,
+  medida VARCHAR(50) NOT NULL,
+  quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+  valor_unitario DECIMAL(10,2) NOT NULL DEFAULT 0,
+  subtotal DECIMAL(10,2) GENERATED ALWAYS AS (quantidade * valor_unitario) STORED,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE vendas_atacado ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vendas_atacado_itens ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY staff_acesso_total ON vendas_atacado
+  FOR ALL TO authenticated
+  USING (sou_colaborador_ativo())
+  WITH CHECK (sou_colaborador_ativo());
+
+CREATE POLICY staff_acesso_total ON vendas_atacado_itens
+  FOR ALL TO authenticated
+  USING (sou_colaborador_ativo())
+  WITH CHECK (sou_colaborador_ativo());
+
 -- ============================================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================================
@@ -357,6 +393,7 @@ CREATE INDEX IF NOT EXISTS idx_vendas_itens_venda ON vendas_itens(venda_id);
 CREATE INDEX IF NOT EXISTS idx_veiculos_cliente ON veiculos(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_estoque_lojas_loja ON estoque_lojas(loja_id);
 CREATE INDEX IF NOT EXISTS idx_remessas_loja ON remessas(loja_id);
+CREATE INDEX IF NOT EXISTS idx_vendas_atacado_itens_venda ON vendas_atacado_itens(venda_atacado_id);
 CREATE INDEX IF NOT EXISTS idx_remessas_itens_remessa ON remessas_itens(remessa_id);
 CREATE INDEX IF NOT EXISTS idx_movimentacao_produto_loja ON movimentacao_estoque(produto_id, loja_id);
 

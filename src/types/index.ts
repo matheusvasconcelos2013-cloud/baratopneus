@@ -105,6 +105,26 @@ export interface VendaItem {
   subtotal: number;
 }
 
+export interface VendaAtacado {
+  id: number;
+  comprador: string;
+  data_venda?: string;
+  frete?: number;
+  valor_total?: number;
+  observacao?: string;
+  created_at: string;
+  itens?: VendaAtacadoItem[];
+}
+
+export interface VendaAtacadoItem {
+  id: number;
+  venda_atacado_id: number;
+  medida: string;
+  quantidade: number;
+  valor_unitario: number;
+  subtotal: number;
+}
+
 export interface Colaborador {
   id: number;
   loja_id?: number;
