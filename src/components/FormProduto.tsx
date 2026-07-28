@@ -16,7 +16,7 @@ interface FormProdutoProps {
 export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormProdutoProps) {
   const [form, setForm] = useState({
     codigo: '', nome: '', tipo: 'Produto', fabricante_id: '',
-    preco_venda: 0, preco_custo: 0, unidade: 'UN',
+    preco_venda: 0, preco_custo: 0, preco_atacado: 0, unidade: 'UN',
     quantidade_estoque: 0, estoque_minimo: 0, observacao: '', ativo: true,
   });
   const [fabricantes, setFabricantes] = useState<any[]>([]);
@@ -32,12 +32,13 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
         codigo: produto.codigo || '', nome: produto.nome || '', tipo: produto.tipo || 'Produto',
         fabricante_id: produto.fabricante_id?.toString() || '',
         preco_venda: produto.preco_venda || 0, preco_custo: produto.preco_custo || 0,
+        preco_atacado: produto.preco_atacado || 0,
         unidade: produto.unidade || 'UN', quantidade_estoque: produto.quantidade_estoque || 0,
         estoque_minimo: produto.estoque_minimo || 0, observacao: produto.observacao || '',
         ativo: produto.ativo !== false,
       });
     } else {
-      setForm({ codigo: '', nome: '', tipo: 'Produto', fabricante_id: '', preco_venda: 0, preco_custo: 0, unidade: 'UN', quantidade_estoque: 0, estoque_minimo: 0, observacao: '', ativo: true });
+      setForm({ codigo: '', nome: '', tipo: 'Produto', fabricante_id: '', preco_venda: 0, preco_custo: 0, preco_atacado: 0, unidade: 'UN', quantidade_estoque: 0, estoque_minimo: 0, observacao: '', ativo: true });
     }
   }, [produto, isOpen]);
  
@@ -82,7 +83,7 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
       ...prev,
       [name]: name === 'quantidade_estoque'
         ? parseInt(value, 10) || 0
-        : ['preco_venda', 'preco_custo', 'estoque_minimo'].includes(name) ? parseFloat(value) || 0 : value
+        : ['preco_venda', 'preco_custo', 'preco_atacado', 'estoque_minimo'].includes(name) ? parseFloat(value) || 0 : value
     }));
   };
  
@@ -154,8 +155,9 @@ export default function FormProduto({ isOpen, onClose, onSaved, produto }: FormP
           <Input label="Unidade" value={form.unidade} onChange={handleChange} name="unidade" placeholder="UN, PC, KG" />
           <Input label="Preço Venda" type="number" value={form.preco_venda} onChange={handleChange} name="preco_venda" step="0.01" min={0} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input label="Preço Custo" type="number" value={form.preco_custo} onChange={handleChange} name="preco_custo" step="0.01" min={0} />
+          <Input label="Preço Atacado" type="number" value={form.preco_atacado} onChange={handleChange} name="preco_atacado" step="0.01" min={0} />
           <Input label="Estoque Mínimo" type="number" value={form.estoque_minimo} onChange={handleChange} name="estoque_minimo" step="0.01" min={0} />
           {produto && form.tipo === 'Produto' && (
             <div>

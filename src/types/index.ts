@@ -57,6 +57,7 @@ export interface Produto {
   fabricante_id?: number;
   preco_venda?: number;
   preco_custo?: number;
+  preco_atacado?: number;
   unidade?: string;
   quantidade_estoque?: number;
   estoque_minimo?: number;

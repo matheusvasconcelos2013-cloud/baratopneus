@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   fabricante_id INTEGER REFERENCES fabricantes(id),
   preco_venda DECIMAL(10,2) DEFAULT 0,
   preco_custo DECIMAL(10,2) DEFAULT 0,
+  preco_atacado DECIMAL(10,2) DEFAULT 0,
   unidade VARCHAR(20) DEFAULT 'UN',
   quantidade_estoque DECIMAL(10,2) DEFAULT 0,
   estoque_minimo DECIMAL(10,2) DEFAULT 0,
