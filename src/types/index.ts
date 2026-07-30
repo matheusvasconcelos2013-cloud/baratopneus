@@ -193,8 +193,9 @@ export interface FidelizacaoContato {
   created_at: string;
 }
 
-// Linha da view clientes_rodizio_pendente: última compra de pneu entre
-// 5 e 8 meses atrás, já com o último contato de fidelização (se houver).
+// Linha da view clientes_rodizio_pendente: última compra entre 5 e 8
+// meses atrás, já com o contato de fidelização daquela compra (se houver).
+// qtd_itens é nulo nas vendas anteriores ao lançamento de itens por produto.
 export interface ClienteRodizio {
   cliente_id: number;
   nome: string;
@@ -203,7 +204,7 @@ export interface ClienteRodizio {
   loja_id?: number;
   loja_nome?: string;
   data_venda: string;
-  qtd_pneus: number;
+  qtd_itens?: number;
   dias_desde_compra: number;
   meses_desde_compra: number;
   placa?: string;

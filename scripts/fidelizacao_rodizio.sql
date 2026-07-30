@@ -14,9 +14,9 @@
 -- ------------------------------------------------------------
 -- 1. REGISTRO DE CONTATOS
 -- ------------------------------------------------------------
--- Uma linha por cliente contatado. venda_origem_id é a compra de
--- pneu que gerou o contato (evita contatar duas vezes pela mesma
--- compra); venda_gerada_id/valor_gerado é o retorno da visita —
+-- Uma linha por cliente contatado. venda_origem_id é a compra que
+-- gerou o contato (evita contatar duas vezes pela mesma compra);
+-- venda_gerada_id/valor_gerado é o retorno da visita —
 -- sem eles não dá pra saber se o programa se paga.
 CREATE TABLE IF NOT EXISTS fidelizacao_contatos (
   id SERIAL PRIMARY KEY,
@@ -77,10 +77,16 @@ CREATE POLICY fidelizacao_staff_acesso_total ON fidelizacao_contatos
 -- ------------------------------------------------------------
 -- 2. VIEW — fila de clientes a contatar
 -- ------------------------------------------------------------
--- Janela de 5 a 8 meses desde a ÚLTIMA compra de pneu. A janela é
--- larga de propósito na primeira rodada, pra recuperar o passivo de
--- clientes antigos; quem comprou de novo mais recentemente sai da
--- lista sozinho, porque só a última compra é considerada.
+-- Janela de 5 a 8 meses desde a ÚLTIMA compra. A janela é larga de
+-- propósito na primeira rodada, pra recuperar o passivo de clientes
+-- antigos; quem comprou de novo mais recentemente sai da lista
+-- sozinho, porque só a última compra é considerada.
+--
+-- Considera QUALQUER venda finalizada, não só as com pneu no item:
+-- o registro de itens por produto começou em 07/2026, então filtrar
+-- por produto descartaria toda a base anterior (a fila ia a zero).
+-- Como a loja vende essencialmente pneu, a venda inteira serve de
+-- proxy. qtd_itens vem nulo nas vendas antigas, sem item lançado.
 --
 -- ATENÇÃO — esta view é SECURITY DEFINER (sem security_invoker), ao
 -- contrário das demais views do sistema. Motivo: vendas tem RLS que
@@ -91,25 +97,22 @@ CREATE POLICY fidelizacao_staff_acesso_total ON fidelizacao_contatos
 -- colaborador ativo, via sou_colaborador_ativo() no WHERE, e
 -- (b) não expõe nenhum dado financeiro da venda de origem
 -- (valor_total, lucro), apenas data e quantidade de pneus.
-CREATE OR REPLACE VIEW clientes_rodizio_pendente AS
-WITH compras_pneu AS (
+DROP VIEW IF EXISTS clientes_rodizio_pendente;
+
+CREATE VIEW clientes_rodizio_pendente AS
+WITH compras AS (
   SELECT
     v.id AS venda_id,
     v.cliente_id,
     v.loja_id,
-    v.data_venda,
-    SUM(vi.quantidade) AS qtd_pneus
+    v.data_venda
   FROM vendas v
-  JOIN vendas_itens vi ON vi.venda_id = v.id
-  JOIN produtos p ON p.id = vi.produto_id
   WHERE v.situacao = 'Finalizada'
     AND v.cliente_id IS NOT NULL
-    AND extensions.unaccent(lower(p.nome)) LIKE '%pneu%'
-  GROUP BY v.id, v.cliente_id, v.loja_id, v.data_venda
 ),
 ultima_compra AS (
   SELECT DISTINCT ON (cliente_id) *
-  FROM compras_pneu
+  FROM compras
   ORDER BY cliente_id, data_venda DESC, venda_id DESC
 )
 SELECT
@@ -120,7 +123,7 @@ SELECT
   u.loja_id,
   l.nome AS loja_nome,
   u.data_venda,
-  u.qtd_pneus,
+  it.qtd_itens,
   (CURRENT_DATE - u.data_venda) AS dias_desde_compra,
   ROUND((CURRENT_DATE - u.data_venda) / 30.0, 1) AS meses_desde_compra,
   ve.placa,
@@ -142,6 +145,12 @@ CROSS JOIN LATERAL (
     NULLIF(regexp_replace(COALESCE(c.telefone, ''), '[^0-9]', '', 'g'), '')
   ) AS numero
 ) tel
+-- Quantidade de itens da venda, quando ela tem item lançado.
+LEFT JOIN LATERAL (
+  SELECT SUM(quantidade) AS qtd_itens
+  FROM vendas_itens
+  WHERE venda_id = u.venda_id
+) it ON true
 LEFT JOIN LATERAL (
   SELECT placa, marca, modelo
   FROM veiculos

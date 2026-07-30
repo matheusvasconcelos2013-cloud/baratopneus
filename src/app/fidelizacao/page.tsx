@@ -217,7 +217,7 @@ export default function FidelizacaoPage() {
         <header className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800">🎯 Fidelização</h1>
           <p className="text-gray-500 mt-1">
-            Clientes que compraram pneu entre 5 e 8 meses atrás — hora de oferecer o rodízio de cortesia
+            Clientes que compraram entre 5 e 8 meses atrás — hora de oferecer o rodízio de cortesia
           </p>
         </header>
 
@@ -273,7 +273,7 @@ export default function FidelizacaoPage() {
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">WhatsApp</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Veículo</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Última compra</th>
-                  <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Pneus</th>
+                  <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Itens</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Loja</th>
                   <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Situação</th>
                   <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Ações</th>
@@ -292,7 +292,7 @@ export default function FidelizacaoPage() {
                       {formatDate(item.data_venda)}
                       <span className="block text-xs text-gray-400">{item.meses_desde_compra} meses</span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-center text-gray-600">{item.qtd_pneus}</td>
+                    <td className="py-3 px-4 text-sm text-center text-gray-600">{item.qtd_itens ?? '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{item.loja_nome || '-'}</td>
                     <td className="py-3 px-4 text-center">
                       {item.contato_status ? (
