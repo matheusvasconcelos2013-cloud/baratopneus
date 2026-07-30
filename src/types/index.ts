@@ -174,6 +174,48 @@ export interface ContaFinanceiro {
 }
 
 // ============================================================
+// Fidelização (rodízio de cortesia)
+// ============================================================
+
+export type StatusFidelizacao = 'Contatado' | 'Agendado' | 'Compareceu' | 'Nao respondeu' | 'Recusou';
+
+export interface FidelizacaoContato {
+  id: number;
+  cliente_id: number;
+  venda_origem_id?: number;
+  data_contato: string;
+  status: StatusFidelizacao;
+  data_agendada?: string;
+  venda_gerada_id?: number;
+  valor_gerado?: number;
+  observacao?: string;
+  criado_por?: number;
+  created_at: string;
+}
+
+// Linha da view clientes_rodizio_pendente: última compra de pneu entre
+// 5 e 8 meses atrás, já com o último contato de fidelização (se houver).
+export interface ClienteRodizio {
+  cliente_id: number;
+  nome: string;
+  whatsapp: string;
+  venda_id: number;
+  loja_id?: number;
+  loja_nome?: string;
+  data_venda: string;
+  qtd_pneus: number;
+  dias_desde_compra: number;
+  meses_desde_compra: number;
+  placa?: string;
+  veiculo?: string;
+  contato_id?: number;
+  contato_status?: StatusFidelizacao;
+  contato_data?: string;
+  contato_agendada?: string;
+  contato_valor_gerado?: number;
+}
+
+// ============================================================
 // Controle de Produção (carcaças, matéria-prima, lotes)
 // ============================================================
 
