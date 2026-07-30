@@ -39,10 +39,15 @@ const statusLabel: Record<string, string> = {
 
 // O texto não diz "faz 6 meses" de propósito: a janela é de 5 a 8 meses e
 // o cliente não precisa saber a conta — só que já está na hora do rodízio.
+//
+// Sem emoji: tanto 🚗 quanto 🛞 chegaram como quadradinho no WhatsApp de
+// quem recebe. Os acentos chegam certos, então é a fonte de emoji dos
+// aparelhos, não o encoding — não adianta trocar por outro. Os asteriscos
+// são o negrito do WhatsApp e passam intactos pelo encodeURIComponent.
 function montarMensagem(nome: string) {
   const primeiroNome = nome.trim().split(' ')[0];
   return (
-    `Oi ${primeiroNome}, aqui é da *Barato Pneus* 🛞\n\n` +
+    `Oi ${primeiroNome}, aqui é da *Barato Pneus*\n\n` +
     `Faz um tempo que você trocou os pneus com a gente. Nesse período o rodízio já é recomendado — ele faz os pneus *durarem até 20% mais.*\n\n` +
     `Pra você é *cortesia*, é rapidinho e não precisa agendar. Quer passar essa semana?`
   );
