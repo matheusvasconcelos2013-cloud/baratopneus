@@ -96,7 +96,7 @@ CREATE POLICY fidelizacao_staff_acesso_total ON fidelizacao_contatos
 -- compensar o bypass de RLS, a view (a) só devolve linha para
 -- colaborador ativo, via sou_colaborador_ativo() no WHERE, e
 -- (b) não expõe nenhum dado financeiro da venda de origem
--- (valor_total, lucro), apenas data e quantidade de pneus.
+-- (valor_total, lucro), apenas data e quantidade de itens.
 DROP VIEW IF EXISTS clientes_rodizio_pendente;
 
 CREATE VIEW clientes_rodizio_pendente AS
