@@ -42,7 +42,7 @@ const statusLabel: Record<string, string> = {
 function montarMensagem(nome: string) {
   const primeiroNome = nome.trim().split(' ')[0];
   return (
-    `Oi ${primeiroNome}, aqui é da Barato Pneus 🚗\n\n` +
+    `Oi ${primeiroNome}, aqui é da Barato Pneus 🛞\n\n` +
     `Faz um tempo que você trocou os pneus com a gente. Nesse período o rodízio já é recomendado — ele faz os pneus durarem até 20% mais.\n\n` +
     `Pra você é cortesia, é rapidinho e não precisa agendar. Quer passar essa semana?`
   );
