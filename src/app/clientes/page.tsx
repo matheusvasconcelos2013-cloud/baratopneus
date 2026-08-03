@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import FormCliente from '@/components/FormCliente';
+import ClienteHistorico from '@/components/ClienteHistorico';
 import { Button, formatMoney } from '@/components/FormElements';
 import { Cliente } from '@/types';
 import toast from 'react-hot-toast';
@@ -17,6 +18,8 @@ export default function ClientesPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [historicoCliente, setHistoricoCliente] = useState<Cliente | null>(null);
   const [pagina, setPagina] = useState(1);
   const porPagina = 14;
 
@@ -134,6 +137,10 @@ export default function ClientesPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-center gap-2">
+                        <button onClick={() => { setHistoricoCliente(c); setShowHistorico(true); }}
+                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition" title="Histórico de compras">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
                         <button onClick={() => { setEditingCliente(c); setShowForm(true); }}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -170,6 +177,9 @@ export default function ClientesPage() {
 
         <FormCliente isOpen={showForm} onClose={() => { setShowForm(false); setEditingCliente(null); }}
           onSaved={carregarClientes} cliente={editingCliente} />
+
+        <ClienteHistorico isOpen={showHistorico} onClose={() => { setShowHistorico(false); setHistoricoCliente(null); }}
+          cliente={historicoCliente} />
       </main>
     </div>
   );

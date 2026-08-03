@@ -8,6 +8,7 @@ import FormVenda from '@/components/FormVenda';
 import ReciboVenda from '@/components/ReciboVenda';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
+import { linkWhatsapp, montarMensagemVenda } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 interface VendaRow {
@@ -92,7 +93,7 @@ export default function VendasPage() {
   while (temMais) {
     let query = supabase
       .from('vendas')
-      .select('*, cliente:clientes(nome), vendedor:colaboradores!vendas_vendedor_id_fkey(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
+      .select('*, cliente:clientes(nome, celular, telefone), vendedor:colaboradores!vendas_vendedor_id_fkey(nome), loja:lojas(nome, endereco, cidade, estado, telefone)')
       .order('data_venda', { ascending: false })
       .range(pagina * tamanhoPagina, (pagina + 1) * tamanhoPagina - 1);
 
@@ -204,6 +205,31 @@ export default function VendasPage() {
       });
       setReciboItens([]);
       setShowRecibo(true);
+    }
+  };
+
+  const enviarWhatsapp = async (venda: VendaRow) => {
+    const telefone = venda.cliente?.celular || venda.cliente?.telefone;
+    if (!telefone) { toast.error('Cliente sem celular cadastrado'); return; }
+
+    // Abre a aba antes do fetch assíncrono pra não ser bloqueado como popup
+    const aba = window.open('', '_blank');
+    try {
+      const { data: itens } = await supabase.from('vendas_itens').select('*, produtos(nome)').eq('venda_id', venda.id);
+      const mensagem = montarMensagemVenda({
+        codigo: venda.codigo || venda.id,
+        clienteNome: venda.cliente?.nome,
+        itens: itens || [],
+        total: venda.valor_total || 0,
+        orcamento: !!venda.orcamento,
+      });
+      const link = linkWhatsapp(telefone, mensagem);
+      if (!link) { toast.error('Número de celular inválido'); aba?.close(); return; }
+      if (aba) aba.location.href = link; else window.location.href = link;
+    } catch (err) {
+      aba?.close();
+      toast.error('Não foi possível montar a mensagem do WhatsApp.');
+      console.error('Falha ao montar mensagem do WhatsApp:', err);
     }
   };
 
@@ -329,6 +355,10 @@ export default function VendasPage() {
                         <button onClick={() => imprimirRecibo(v)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title={v.orcamento ? 'Imprimir Orçamento' : 'Imprimir Recibo'}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                        </button>
+                        <button onClick={() => enviarWhatsapp(v)}
+                          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg" title={v.orcamento ? 'Enviar Orçamento por WhatsApp' : 'Enviar por WhatsApp'}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         </button>
                         <button onClick={() => { setEditingVenda(v); setShowForm(true); }}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar">
