@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney, formatDate } from './FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
-import { linkWhatsapp, montarMensagemVenda } from '@/lib/whatsapp';
+import { linkWhatsapp } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 interface ReciboVendaProps {
@@ -103,14 +103,8 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
     const telefone = cliente?.celular || cliente?.telefone;
     if (!telefone) { toast.error('Cliente sem celular cadastrado'); abaPreAberta?.close(); return; }
 
-    const mensagem = montarMensagemVenda({
-      codigo: venda.codigo || venda.id,
-      clienteNome: cliente?.nome,
-      itens,
-      total: venda.valor_total || 0,
-      orcamento: ehOrcamento,
-    });
-    const link = linkWhatsapp(telefone, mensagem);
+    // Sem texto: o PDF anexado já é autoexplicativo, a conversa abre limpa.
+    const link = linkWhatsapp(telefone);
     if (!link) { toast.error('Número de celular inválido'); abaPreAberta?.close(); return; }
 
     const aba = abaPreAberta !== undefined ? abaPreAberta : window.open('', '_blank');
@@ -121,12 +115,12 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
       const nomeArquivo = `${ehOrcamento ? 'orcamento' : 'recibo'}-${venda.codigo || venda.id}.pdf`;
       const arquivo = new File([blob], nomeArquivo, { type: 'application/pdf' });
 
-      // No celular, o share sheet nativo entrega texto + PDF direto no
-      // WhatsApp escolhido. É o único jeito de anexar arquivo num link
-      // wa.me, que só aceita texto.
+      // No celular, o share sheet nativo entrega o PDF direto no WhatsApp
+      // escolhido. É o único jeito de anexar arquivo num link wa.me, que só
+      // aceita texto.
       if (typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [arquivo] })) {
         try {
-          await navigator.share({ files: [arquivo], text: mensagem });
+          await navigator.share({ files: [arquivo] });
           aba?.close();
           return;
         } catch (shareErr: any) {
@@ -138,8 +132,9 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
       }
 
       // Sem suporte a compartilhar arquivo (a maioria dos navegadores de
-      // desktop) ou o share falhou: baixa o PDF e abre o WhatsApp com a
-      // mensagem — só falta anexar o arquivo que acabou de ser baixado.
+      // desktop) ou o share falhou: baixa o PDF e abre o WhatsApp na
+      // conversa do cliente — só falta anexar o arquivo que acabou de ser
+      // baixado.
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
