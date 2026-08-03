@@ -179,6 +179,11 @@ CREATE TABLE IF NOT EXISTS vendas (
 -- transação inteira era revertida.
 ALTER TABLE vendas ADD COLUMN IF NOT EXISTS criado_por INTEGER REFERENCES colaboradores(id);
 
+-- Orçamento: a venda é apenas uma simulação de valores enviada ao cliente.
+-- Não baixa estoque, não gera lançamento em contas_financeiro e é excluída
+-- de faturamento/lucro no dashboard, relatórios, Shopee e listagem de vendas.
+ALTER TABLE vendas ADD COLUMN IF NOT EXISTS orcamento BOOLEAN DEFAULT FALSE;
+
 CREATE OR REPLACE FUNCTION public.set_vendas_criado_por()
 RETURNS trigger
 LANGUAGE plpgsql

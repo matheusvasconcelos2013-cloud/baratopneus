@@ -167,7 +167,7 @@ export default function DashboardPage() {
     try {
       const { inicio, fim } = getRangeData(periodo, dataRef);
 
-      // 1) Vendas do período (exclui canceladas)
+      // 1) Vendas do período (exclui canceladas e orçamentos, que são só simulação)
       const vendasData = await buscarTodasLinhas<Venda>((de, ate) => {
         let query = supabase
           .from('vendas')
@@ -175,6 +175,7 @@ export default function DashboardPage() {
           .gte('data_venda', formatDateInput(inicio))
           .lte('data_venda', formatDateInput(fim))
           .neq('situacao', 'Cancelada')
+          .not('orcamento', 'is', true)
           .range(de, ate);
 
         if (lojaAtiva) query = query.eq('loja_id', parseInt(lojaAtiva));
@@ -301,6 +302,7 @@ export default function DashboardPage() {
           .gte('data_venda', formatDateInput(inicio))
           .lte('data_venda', formatDateInput(fim))
           .neq('situacao', 'Cancelada')
+          .not('orcamento', 'is', true)
           .order('data_venda', { ascending: false })
           .range(de, ate)
       );

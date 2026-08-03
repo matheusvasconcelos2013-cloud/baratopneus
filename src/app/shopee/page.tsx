@@ -67,6 +67,7 @@ export default function ShopeePage() {
         .select('id, codigo, valor_total, lucro_final, data_venda, situacao, tipo_pagamento, cliente:clientes(nome), itens:vendas_itens(quantidade, produto:produtos(nome), loja:lojas(nome))')
         .eq('loja_id', loja.id)
         .neq('situacao', 'Cancelada')
+        .not('orcamento', 'is', true)
         .order('data_venda', { ascending: false });
 
       if (error) throw error;

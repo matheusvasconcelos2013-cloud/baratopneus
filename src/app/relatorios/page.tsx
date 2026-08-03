@@ -60,6 +60,7 @@ export default function RelatoriosPage() {
       .select('*, cliente:clientes(nome)')
       .gte('data_venda', dataInicio)
       .eq('situacao', 'Finalizada')
+      .not('orcamento', 'is', true)
       .order('data_venda', { ascending: false });
 
     if (vendas) {

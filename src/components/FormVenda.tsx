@@ -22,7 +22,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   const [form, setForm] = useState({
     codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0,
     lucro_final: 0, data_venda: getLocalDateString(),
-    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: ''
+    situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: '', orcamento: false
   });
   const [itens, setItens] = useState<any[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -51,11 +51,12 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
         situacao: venda.situacao || 'Finalizada',
         tipo_pagamento: venda.tipo_pagamento || 'À Vista',
         observacao: venda.observacao || '',
-        como_conheceu: (venda as any).como_conheceu || ''
+        como_conheceu: (venda as any).como_conheceu || '',
+        orcamento: !!(venda as any).orcamento
       });
       carregarItens(venda.id);
     } else {
-      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: '' });
+      setForm({ codigo: '', loja_id: '', cliente_id: '', vendedor_id: '', valor_total: 0, lucro_parcial: 0, lucro_final: 0, data_venda: getLocalDateString(), situacao: 'Finalizada', tipo_pagamento: 'À Vista', observacao: '', como_conheceu: '', orcamento: false });
       setItens([]);
     }
   }, [venda, isOpen]);
@@ -232,10 +233,10 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (itens.length === 0) { toast.error('Adicione pelo menos um item à venda'); return; }
+    if (itens.length === 0) { toast.error(form.orcamento ? 'Adicione pelo menos um item ao orçamento' : 'Adicione pelo menos um item à venda'); return; }
     if (!form.loja_id) { toast.error('Selecione a loja'); return; }
     if (!form.vendedor_id) { toast.error('Selecione o vendedor'); return; }
-    if (!isShopee && !form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
+    if (!isShopee && !form.orcamento && !form.como_conheceu) { toast.error('Selecione como o cliente conheceu a loja'); return; }
     if (!isShopee && !form.cliente_id) { toast.error('Selecione o cliente'); return; }
     setLoading(true);
 
@@ -243,11 +244,15 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
       const total = calcularTotalVendas();
       const lucro = calcularLucro();
       const lojaId = parseInt(form.loja_id);
+      // Orçamento é só uma simulação de valores para enviar ao cliente:
+      // não baixa estoque, não gera lançamento financeiro e não notifica.
+      const ehOrcamento = form.orcamento;
+      const eraOrcamento = !!(venda as any)?.orcamento;
 
       const vendaData = {
         ...form,
         loja_id: lojaId,
-        como_conheceu: isShopee ? '-' : form.como_conheceu,
+        como_conheceu: isShopee || ehOrcamento ? '-' : form.como_conheceu,
         cliente_id: !isShopee && form.cliente_id ? parseInt(form.cliente_id) : null,
         vendedor_id: form.vendedor_id ? parseInt(form.vendedor_id) : null,
         valor_total: total,
@@ -284,7 +289,8 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
       if (venda) {
         const lojaIdAntiga = (venda as any).loja_id;
-        if (lojaIdAntiga) await reverterEstoque(lojaIdAntiga, venda.id);
+        // Orçamento nunca baixou estoque, então também não há o que estornar
+        if (lojaIdAntiga && !eraOrcamento) await reverterEstoque(lojaIdAntiga, venda.id);
 
         const { error } = await supabase.from('vendas').update(vendaData).eq('id', venda.id);
         if (error) throw error;
@@ -295,19 +301,38 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, medida_esquerdo_antes: i.medida_esquerdo_antes ?? null, medida_esquerdo_depois: i.medida_esquerdo_depois ?? null, medida_direito_antes: i.medida_direito_antes ?? null, medida_direito_depois: i.medida_direito_depois ?? null, loja_id: i.loja_id ?? null, subtotal: i.subtotal
         })));
 
-        await deduzirEstoque(lojaId, venda.id);
+        if (!ehOrcamento) await deduzirEstoque(lojaId, venda.id);
 
-        await supabase.from('contas_financeiro').update({
-          valor: total,
-          descricao: `Venda #${form.codigo || venda.id} - ${clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente'}`,
-        }).eq('referencia_id', venda.id).eq('categoria', 'Venda');
+        const clienteNomeEdicao = clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente';
+        if (ehOrcamento) {
+          // Virou orçamento: remove o lançamento financeiro que a venda tinha
+          await supabase.from('contas_financeiro').delete()
+            .eq('referencia_id', venda.id).eq('categoria', 'Venda');
+        } else if (eraOrcamento) {
+          // Era orçamento e virou venda de verdade: cria o lançamento agora
+          await supabase.from('contas_financeiro').insert([{
+            tipo: 'Receber',
+            descricao: `Venda #${form.codigo || venda.id} - ${clienteNomeEdicao}`,
+            valor: total,
+            data_vencimento: form.data_venda,
+            pago: form.situacao === 'Finalizada',
+            data_pagamento: form.situacao === 'Finalizada' ? form.data_venda : null,
+            categoria: 'Venda',
+            referencia_id: venda.id,
+          }]);
+        } else {
+          await supabase.from('contas_financeiro').update({
+            valor: total,
+            descricao: `Venda #${form.codigo || venda.id} - ${clienteNomeEdicao}`,
+          }).eq('referencia_id', venda.id).eq('categoria', 'Venda');
+        }
 
-        // A venda estava em aberto/andamento e passou a Finalizada agora: notifica como se fosse nova
-        if (venda.situacao !== 'Finalizada' && form.situacao === 'Finalizada') {
+        // A venda estava em aberto/andamento (ou era orçamento) e passou a Finalizada agora: notifica como se fosse nova
+        if (!ehOrcamento && form.situacao === 'Finalizada' && (eraOrcamento || venda.situacao !== 'Finalizada')) {
           await notificarVendaFinalizada(venda.id);
         }
 
-        toast.success('Venda atualizada!');
+        toast.success(ehOrcamento ? 'Orçamento atualizado!' : 'Venda atualizada!');
       } else {
         const { data, error } = await supabase.from('vendas').insert([vendaData]).select();
         if (error) throw error;
@@ -320,23 +345,25 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
             preco_unitario: i.preco_unitario, preco_custo: i.preco_custo, desconto: i.desconto || 0, garantia: i.garantia || false, lado: i.lado || null, medida_esquerdo_antes: i.medida_esquerdo_antes ?? null, medida_esquerdo_depois: i.medida_esquerdo_depois ?? null, medida_direito_antes: i.medida_direito_antes ?? null, medida_direito_depois: i.medida_direito_depois ?? null, loja_id: i.loja_id ?? null, subtotal: i.subtotal
           })));
 
-          await deduzirEstoque(lojaId, vendaId);
+          if (!ehOrcamento) {
+            await deduzirEstoque(lojaId, vendaId);
 
-          const clienteNome = clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente';
-          await supabase.from('contas_financeiro').insert([{
-            tipo: 'Receber',
-            descricao: `Venda #${form.codigo || vendaId} - ${clienteNome}`,
-            valor: total,
-            data_vencimento: form.data_venda,
-            pago: form.situacao === 'Finalizada',
-            data_pagamento: form.situacao === 'Finalizada' ? form.data_venda : null,
-            categoria: 'Venda',
-            referencia_id: vendaId,
-          }]);
+            const clienteNome = clientes.find(c => c.id === parseInt(form.cliente_id))?.nome || 'Cliente';
+            await supabase.from('contas_financeiro').insert([{
+              tipo: 'Receber',
+              descricao: `Venda #${form.codigo || vendaId} - ${clienteNome}`,
+              valor: total,
+              data_vencimento: form.data_venda,
+              pago: form.situacao === 'Finalizada',
+              data_pagamento: form.situacao === 'Finalizada' ? form.data_venda : null,
+              categoria: 'Venda',
+              referencia_id: vendaId,
+            }]);
 
-          await notificarVendaFinalizada(vendaId);
+            await notificarVendaFinalizada(vendaId);
+          }
         }
-        toast.success('Venda registrada!');
+        toast.success(ehOrcamento ? 'Orçamento registrado!' : 'Venda registrada!');
       }
 
       onSaved();
@@ -349,10 +376,12 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={venda ? 'Editar Venda' : 'Nova Venda'} size="xl">
+    <Modal isOpen={isOpen} onClose={onClose}
+      title={form.orcamento ? (venda ? 'Editar Orçamento' : 'Novo Orçamento') : (venda ? 'Editar Venda' : 'Nova Venda')}
+      size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {!isShopee && (
+          {!isShopee && !form.orcamento && (
             <Select label="Como conheceu a loja *" value={form.como_conheceu} onChange={handleChange} name="como_conheceu"
               disabled={itens.some(i => i.garantia) || novoItem.garantia}
               options={[{ value: 'Facebook', label: 'Facebook' }, { value: 'Instagram', label: 'Instagram' }, { value: 'Google', label: 'Google' }, { value: 'Passando na rua', label: 'Passando na rua' }, { value: 'Indicação', label: 'Indicação' }, { value: '-', label: '-' }]}
@@ -402,7 +431,7 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
 
         {/* Itens da Venda */}
         <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-          <h3 className="font-semibold text-gray-700 mb-3">Itens da Venda</h3>
+          <h3 className="font-semibold text-gray-700 mb-3">{form.orcamento ? 'Itens do Orçamento' : 'Itens da Venda'}</h3>
 
           {itens.length > 0 && (
             <div className="mb-4 space-y-2">
@@ -537,11 +566,28 @@ export default function FormVenda({ isOpen, onClose, onSaved, venda }: FormVenda
           <label className="text-sm text-gray-600">Cambagem</label>
         </div>
 
+        <div className={`rounded-lg border p-3 ${form.orcamento ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" checked={form.orcamento}
+              onChange={(e) => setForm(prev => ({ ...prev, orcamento: e.target.checked }))}
+              className="w-4 h-4 text-amber-600 rounded" />
+            <label className="text-sm text-gray-600">Orçamento</label>
+          </div>
+          {form.orcamento && (
+            <p className="text-xs text-amber-700 mt-2">
+              Simulação de valores para enviar ao cliente: não conta como venda, não baixa o estoque
+              e não entra no faturamento nem no lucro.
+            </p>
+          )}
+        </div>
+
         <TextArea label="Observação" value={form.observacao} onChange={handleChange} name="observacao" />
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" loading={loading}>{venda ? 'Salvar' : 'Registrar Venda'}</Button>
+          <Button type="submit" loading={loading}>
+            {venda ? 'Salvar' : (form.orcamento ? 'Registrar Orçamento' : 'Registrar Venda')}
+          </Button>
         </div>
       </form>
 

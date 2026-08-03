@@ -80,6 +80,7 @@ export interface Venda {
   tipo_pagamento?: string;
   observacao?: string;
   como_conheceu?: string;
+  orcamento?: boolean; // simulação de valores: não baixa estoque nem entra no faturamento
   created_at: string;
   // Relacionamentos
   cliente?: Cliente;

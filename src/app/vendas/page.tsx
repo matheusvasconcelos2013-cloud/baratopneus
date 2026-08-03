@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 interface VendaRow {
   id: number; codigo: string; valor_total: number; lucro_final: number;
-  data_venda: string; situacao: string; tipo_pagamento: string; observacao?: string;
+  data_venda: string; situacao: string; tipo_pagamento: string; observacao?: string; orcamento?: boolean;
   cliente: { nome: string; cpf_cnpj?: string; celular?: string; telefone?: string; endereco?: string; numero?: string; bairro?: string } | null;
   vendedor: { nome: string } | null;
   loja: { nome: string; telefone?: string; endereco?: string; cidade?: string; estado?: string } | null;
@@ -31,6 +31,9 @@ export default function VendasPage() {
     }
     return 'hoje';
   });
+  // Orçamentos são simulações: ficam fora da listagem e dos totais de venda,
+  // e só aparecem quando o usuário liga esta visão.
+  const [verOrcamentos, setVerOrcamentos] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingVenda, setEditingVenda] = useState<any>(null);
   const [showRecibo, setShowRecibo] = useState(false);
@@ -120,48 +123,53 @@ export default function VendasPage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login'); };
 
-  const excluir = async (id: number) => {
-    if (!confirm('Excluir esta venda permanentemente? O estoque será revertido!')) return;
+  const excluir = async (id: number, ehOrcamento = false) => {
+    if (!confirm(ehOrcamento
+      ? 'Excluir este orçamento permanentemente?'
+      : 'Excluir esta venda permanentemente? O estoque será revertido!')) return;
     try {
       const vendaRes = await supabase.from('vendas').select('id, loja_id').eq('id', id).single();
       const itensRes = await supabase.from('vendas_itens').select('*').eq('venda_id', id);
 
       if (!vendaRes.data || !itensRes.data) {
-        toast.error('Venda não encontrada');
+        toast.error(ehOrcamento ? 'Orçamento não encontrado' : 'Venda não encontrada');
         return;
       }
 
       const lojaId = vendaRes.data.loja_id;
       const itens = itensRes.data;
 
-      // Devolve o estoque de cada item ao que era antes da venda, via RPC
-      // atômica (ajustar_estoque) — evita a condição de corrida do antigo
-      // padrão "ler quantidade -> calcular -> gravar".
-      for (const item of itens) {
-        if (!item.produto_id) continue;
-        const { error: erroEstoque } = await supabase.rpc('ajustar_estoque', {
-          p_produto_id: item.produto_id,
-          p_loja_id: item.loja_id ?? lojaId,
-          p_delta: Math.abs(item.quantidade),
-          p_tipo: 'Entrada',
-          p_motivo: 'Estorno de Venda (exclusão)',
-          p_referencia_id: id,
-        });
-        if (erroEstoque) throw erroEstoque;
+      // Orçamento nunca baixou estoque nem gerou financeiro: não há o que estornar
+      if (!ehOrcamento) {
+        // Devolve o estoque de cada item ao que era antes da venda, via RPC
+        // atômica (ajustar_estoque) — evita a condição de corrida do antigo
+        // padrão "ler quantidade -> calcular -> gravar".
+        for (const item of itens) {
+          if (!item.produto_id) continue;
+          const { error: erroEstoque } = await supabase.rpc('ajustar_estoque', {
+            p_produto_id: item.produto_id,
+            p_loja_id: item.loja_id ?? lojaId,
+            p_delta: Math.abs(item.quantidade),
+            p_tipo: 'Entrada',
+            p_motivo: 'Estorno de Venda (exclusão)',
+            p_referencia_id: id,
+          });
+          if (erroEstoque) throw erroEstoque;
+        }
+
+        // Remove o histórico de movimentação de estoque gerado por essa venda
+        await supabase.from('movimentacao_estoque').delete().eq('referencia_id', id).in('motivo', ['Venda', 'Garantia']);
+
+        // Remove o lançamento financeiro gerado por essa venda
+        await supabase.from('contas_financeiro').delete().eq('referencia_id', id).eq('categoria', 'Venda');
       }
-
-      // Remove o histórico de movimentação de estoque gerado por essa venda
-      await supabase.from('movimentacao_estoque').delete().eq('referencia_id', id).in('motivo', ['Venda', 'Garantia']);
-
-      // Remove o lançamento financeiro gerado por essa venda
-      await supabase.from('contas_financeiro').delete().eq('referencia_id', id).eq('categoria', 'Venda');
 
       // Remove os itens e a venda
       await supabase.from('vendas_itens').delete().eq('venda_id', id);
       const { error } = await supabase.from('vendas').delete().eq('id', id);
       if (error) { toast.error(error.message); return; }
 
-      toast.success('Venda excluída e estoque revertido!');
+      toast.success(ehOrcamento ? 'Orçamento excluído!' : 'Venda excluída e estoque revertido!');
       carregarVendas();
     } catch (err: any) {
       toast.error(err.message);
@@ -202,15 +210,20 @@ export default function VendasPage() {
   const hojeLocal = getLocalDateString();
   const [anoHoje, mesHoje, diaHoje] = hojeLocal.split('-').map(Number);
 
-  const vendasFiltradas = vendas.filter(v => {
+  const dentroDoPeriodo = (v: VendaRow) => {
     if (periodo === 'hoje') return v.data_venda === hojeLocal;
     const [ano, mes, dia] = v.data_venda.split('T')[0].split('-').map(Number);
     const dataUTC = Date.UTC(ano, mes - 1, dia);
     if (periodo === 'semana') return dataUTC >= Date.UTC(anoHoje, mesHoje - 1, diaHoje - 7);
     if (periodo === 'mes') return ano === anoHoje && mes === mesHoje;
     return true;
-  });
+  };
 
+  const vendasFiltradas = vendas.filter(v => dentroDoPeriodo(v) && !v.orcamento);
+  const orcamentosFiltrados = vendas.filter(v => dentroDoPeriodo(v) && v.orcamento);
+  const linhasVisiveis = verOrcamentos ? orcamentosFiltrados : vendasFiltradas;
+
+  // Orçamento é simulação: nunca entra em faturamento, lucro, margem ou ticket médio
   const total = vendasFiltradas.reduce((a, v) => a + (v.valor_total || 0), 0);
   const lucro = vendasFiltradas.reduce((a, v) => a + (v.lucro_final || 0), 0);
 
@@ -223,13 +236,22 @@ export default function VendasPage() {
         <div className="no-print">
         <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">💰 Vendas</h1>
-            <p className="text-gray-500 mt-1">{vendasFiltradas.length} vendas</p>
+            <h1 className="text-3xl font-bold text-gray-800">{verOrcamentos ? '📄 Orçamentos' : '💰 Vendas'}</h1>
+            <p className="text-gray-500 mt-1">
+              {verOrcamentos ? `${orcamentosFiltrados.length} orçamentos` : `${vendasFiltradas.length} vendas`}
+            </p>
           </div>
           <Button onClick={() => { setEditingVenda(null); setShowForm(true); }}>+ Nova Venda</Button>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {verOrcamentos && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-6 text-sm">
+            Orçamentos são simulações enviadas ao cliente: não contam como venda, não baixam o estoque
+            e não entram no faturamento nem no lucro.
+          </div>
+        )}
+
+        <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 ${verOrcamentos ? 'hidden' : ''}`}>
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500">Faturamento</p>
             <p className="text-2xl font-bold text-green-600 mt-1">{formatMoney(total)}</p>
@@ -258,6 +280,10 @@ export default function VendasPage() {
             <button key={i.k} onClick={() => setPeriodo(i.k)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${periodo === i.k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{i.l}</button>
           ))}
+          <button onClick={() => setVerOrcamentos(v => !v)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ml-auto ${verOrcamentos ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
+            {verOrcamentos ? '← Voltar para Vendas' : `📄 Orçamentos (${orcamentosFiltrados.length})`}
+          </button>
           {!isAdmin && <span className="text-xs text-gray-400 self-center ml-2">Você vê apenas as vendas em seu nome</span>}
         </div>
 
@@ -278,17 +304,22 @@ export default function VendasPage() {
                 </tr>
               </thead>
               <tbody>
-                {vendasFiltradas.map(v => (
+                {linhasVisiveis.map(v => (
                   <tr key={v.id}
                     onClick={isAdmin ? () => imprimirRecibo(v) : undefined}
                     className={`border-b border-gray-100 hover:bg-gray-50 ${isAdmin ? 'cursor-pointer' : ''}`}
                     title={isAdmin ? 'Ver detalhes completos da venda' : undefined}>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-800">#{v.codigo || v.id}</td>
+                    <td className="py-3 px-4 text-sm font-medium text-gray-800">
+                      #{v.codigo || v.id}
+                      {v.orcamento && (
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 align-middle">ORÇAMENTO</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.cliente?.nome || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.vendedor?.nome || '-'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{v.loja?.nome || '-'}</td>
                     <td className="py-3 px-4 text-sm text-right text-green-600 font-medium">{formatMoney(v.valor_total || 0)}</td>
-                    <td className="py-3 px-4 text-sm text-right text-blue-600 font-medium">{formatMoney(v.lucro_final || 0)}</td>
+                    <td className="py-3 px-4 text-sm text-right text-blue-600 font-medium">{v.orcamento ? '-' : formatMoney(v.lucro_final || 0)}</td>
                     <td className="py-3 px-4 text-sm text-center text-gray-600">{formatDate(v.data_venda)}</td>
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${v.tipo_pagamento === 'À Vista' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{v.tipo_pagamento || '-'}</span>
@@ -296,14 +327,14 @@ export default function VendasPage() {
                     <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-center gap-2">
                         <button onClick={() => imprimirRecibo(v)}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title="Imprimir Recibo">
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title={v.orcamento ? 'Imprimir Orçamento' : 'Imprimir Recibo'}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                         </button>
                         <button onClick={() => { setEditingVenda(v); setShowForm(true); }}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
-                        <button onClick={() => excluir(v.id)}
+                        <button onClick={() => excluir(v.id, !!v.orcamento)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
@@ -311,7 +342,7 @@ export default function VendasPage() {
                     </td>
                   </tr>
                 ))}
-                {vendasFiltradas.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">Nenhuma venda</td></tr>}
+                {linhasVisiveis.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">{verOrcamentos ? 'Nenhum orçamento' : 'Nenhuma venda'}</td></tr>}
               </tbody>
             </table>
           </div>

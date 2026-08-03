@@ -69,6 +69,10 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
     }
   };
 
+  // Orçamento é só uma simulação de valores enviada ao cliente — o documento
+  // não pode se apresentar como comprovante de uma venda realizada.
+  const ehOrcamento = !!venda.orcamento;
+
   const temPneuRemold = itens.some((i: any) =>
     (i.produto_nome || i.produtos?.nome || '').toLowerCase().includes('remold')
   );
@@ -98,7 +102,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
           <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          {gerandoPdf ? 'Gerando PDF...' : 'Imprimir Recibo'}
+          {gerandoPdf ? 'Gerando PDF...' : (ehOrcamento ? 'Imprimir Orçamento' : 'Imprimir Recibo')}
         </button>
         <button
           onClick={onClose}
@@ -158,7 +162,12 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500">Venda realizada em: {data}{venda.created_at ? ` às ${hora}` : ''}</p>
+              {ehOrcamento && (
+                <p className="inline-flex px-3 py-1 rounded-full text-sm font-bold bg-amber-100 text-amber-700 mb-2">ORÇAMENTO</p>
+              )}
+              <p className="text-xs text-gray-500">
+                {ehOrcamento ? 'Orçamento emitido em' : 'Venda realizada em'}: {data}{venda.created_at ? ` às ${hora}` : ''}
+              </p>
             </div>
           </div>
         </div>
@@ -166,12 +175,13 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         {/* Status */}
         <div className="flex gap-4 mb-6">
           <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold ${
+            ehOrcamento ? 'bg-amber-100 text-amber-700' :
             venda.situacao === 'Finalizada' ? 'bg-green-100 text-green-700' :
             venda.situacao === 'Cancelada' ? 'bg-red-100 text-red-700' :
             'bg-yellow-100 text-yellow-700'
           }`}>
             <span className="w-2 h-2 rounded-full bg-current"></span>
-            {venda.situacao || 'Em Aberto'}
+            {ehOrcamento ? 'Orçamento' : (venda.situacao || 'Em Aberto')}
           </span>
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
             {venda.tipo_pagamento || 'À Vista'}
@@ -209,7 +219,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
 
         {/* Tabela de Itens */}
         <div className="mb-6 print-break-inside">
-          <h3 className="text-lg font-bold text-gray-800 mb-3">📦 Itens da Venda</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-3">📦 {ehOrcamento ? 'Itens do Orçamento' : 'Itens da Venda'}</h3>
           <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[500px]">
             <thead>
@@ -248,9 +258,9 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
         </div>
 
         {/* Totais */}
-        <div className={`grid grid-cols-1 ${temPneuRemold ? 'md:grid-cols-2' : ''} gap-6 mb-6`}>
-          {/* Garantia */}
-          {temPneuRemold && (
+        <div className={`grid grid-cols-1 ${temPneuRemold && !ehOrcamento ? 'md:grid-cols-2' : ''} gap-6 mb-6`}>
+          {/* Garantia (não se aplica a orçamento: nada foi vendido ainda) */}
+          {temPneuRemold && !ehOrcamento && (
           <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 print-break-inside">
             <div className="flex items-start gap-3">
               <span className="text-2xl">🛡️</span>
@@ -305,6 +315,16 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
           </div>
         </div>
 
+        {/* Aviso de orçamento */}
+        {ehOrcamento && (
+          <div className="bg-amber-50 rounded-xl p-4 border-2 border-amber-300 mb-6 print-break-inside">
+            <p className="text-sm text-amber-800 font-medium">
+              Este documento é um <strong>orçamento</strong> e não representa uma venda realizada.
+              Os valores são uma simulação e estão sujeitos a alteração e à disponibilidade dos produtos em estoque.
+            </p>
+          </div>
+        )}
+
         {/* Observação */}
         {venda.observacao && (
           <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 mb-6 print-break-inside">
@@ -321,7 +341,7 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
           </div>
           <div className="bg-gray-100 rounded-xl p-3">
             <p className="text-xs text-gray-500 uppercase">Status</p>
-            <p className="font-bold text-gray-800">{venda.situacao || 'Aberta'}</p>
+            <p className="font-bold text-gray-800">{ehOrcamento ? 'Orçamento' : (venda.situacao || 'Aberta')}</p>
           </div>
           <div className="bg-gray-100 rounded-xl p-3">
             <p className="text-xs text-gray-500 uppercase">Data</p>
