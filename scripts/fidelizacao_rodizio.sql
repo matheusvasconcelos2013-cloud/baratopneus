@@ -109,6 +109,8 @@ WITH compras AS (
   FROM vendas v
   WHERE v.situacao = 'Finalizada'
     AND v.cliente_id IS NOT NULL
+    -- Orçamento é simulação de valores: o cliente não comprou nada
+    AND v.orcamento IS NOT TRUE
 ),
 ultima_compra AS (
   SELECT DISTINCT ON (cliente_id) *
