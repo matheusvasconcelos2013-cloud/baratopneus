@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
@@ -8,7 +8,6 @@ import FormVenda from '@/components/FormVenda';
 import ReciboVenda from '@/components/ReciboVenda';
 import { Button, formatMoney, formatDate } from '@/components/FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
-import { linkWhatsapp, montarMensagemVenda } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 interface VendaRow {
@@ -40,6 +39,13 @@ export default function VendasPage() {
   const [showRecibo, setShowRecibo] = useState(false);
   const [reciboData, setReciboData] = useState<any>(null);
   const [reciboItens, setReciboItens] = useState<any[]>([]);
+  // Abrir o recibo já disparando o envio por WhatsApp: precisa do mesmo
+  // elemento na tela que o "Imprimir Recibo" usa pra gerar o PDF.
+  const [autoEnviarWhatsapp, setAutoEnviarWhatsapp] = useState(false);
+  // Aba de fallback aberta no clique original do botão de WhatsApp da
+  // listagem — precisa ser síncrona (antes de qualquer await) pra não ser
+  // bloqueada como popup. Um ref porque não precisa disparar re-render.
+  const abaFallbackWhatsappRef = useRef<Window | null>(null);
 
   // Salvar período quando mudar
   useEffect(() => {
@@ -188,7 +194,11 @@ export default function VendasPage() {
 
       setReciboData({
         ...venda,
-        cliente: clienteRes.data || { nome: venda.cliente?.nome || 'Consumidor' },
+        // O celular já veio na listagem; usa como reforço caso o cadastro
+        // encontrado pelo nome esteja sem o campo preenchido.
+        cliente: clienteRes.data
+          ? { celular: venda.cliente?.celular, telefone: venda.cliente?.telefone, ...clienteRes.data }
+          : { nome: venda.cliente?.nome || 'Consumidor', celular: venda.cliente?.celular, telefone: venda.cliente?.telefone },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: venda.loja || { nome: 'Barato Pneus' },
         observacao: venda.observacao || ''
@@ -198,7 +208,7 @@ export default function VendasPage() {
     } catch (err) {
       setReciboData({
         ...venda,
-        cliente: { nome: venda.cliente?.nome || 'Consumidor' },
+        cliente: { nome: venda.cliente?.nome || 'Consumidor', celular: venda.cliente?.celular, telefone: venda.cliente?.telefone },
         vendedor: { nome: venda.vendedor?.nome || 'Vendedor não informado' },
         loja: { nome: 'Barato Pneus' },
         observacao: venda.observacao || ''
@@ -208,29 +218,18 @@ export default function VendasPage() {
     }
   };
 
-  const enviarWhatsapp = async (venda: VendaRow) => {
-    const telefone = venda.cliente?.celular || venda.cliente?.telefone;
-    if (!telefone) { toast.error('Cliente sem celular cadastrado'); return; }
-
-    // Abre a aba antes do fetch assíncrono pra não ser bloqueado como popup
-    const aba = window.open('', '_blank');
-    try {
-      const { data: itens } = await supabase.from('vendas_itens').select('*, produtos(nome)').eq('venda_id', venda.id);
-      const mensagem = montarMensagemVenda({
-        codigo: venda.codigo || venda.id,
-        clienteNome: venda.cliente?.nome,
-        itens: itens || [],
-        total: venda.valor_total || 0,
-        orcamento: !!venda.orcamento,
-      });
-      const link = linkWhatsapp(telefone, mensagem);
-      if (!link) { toast.error('Número de celular inválido'); aba?.close(); return; }
-      if (aba) aba.location.href = link; else window.location.href = link;
-    } catch (err) {
-      aba?.close();
-      toast.error('Não foi possível montar a mensagem do WhatsApp.');
-      console.error('Falha ao montar mensagem do WhatsApp:', err);
+  const enviarWhatsapp = (venda: VendaRow) => {
+    if (!venda.cliente?.celular && !venda.cliente?.telefone) {
+      toast.error('Cliente sem celular cadastrado');
+      return;
     }
+    // Abre a aba de fallback aqui, no clique direto, antes de qualquer
+    // await — só é usada se o compartilhamento nativo não der certo.
+    abaFallbackWhatsappRef.current = window.open('', '_blank');
+    // Reaproveita o recibo pra gerar o PDF (ele precisa estar montado na
+    // tela pra virar imagem/PDF) e já dispara o envio assim que abrir.
+    setAutoEnviarWhatsapp(true);
+    imprimirRecibo(venda);
   };
 
   const hojeLocal = getLocalDateString();
@@ -332,7 +331,7 @@ export default function VendasPage() {
               <tbody>
                 {linhasVisiveis.map(v => (
                   <tr key={v.id}
-                    onClick={isAdmin ? () => imprimirRecibo(v) : undefined}
+                    onClick={isAdmin ? () => { setAutoEnviarWhatsapp(false); imprimirRecibo(v); } : undefined}
                     className={`border-b border-gray-100 hover:bg-gray-50 ${isAdmin ? 'cursor-pointer' : ''}`}
                     title={isAdmin ? 'Ver detalhes completos da venda' : undefined}>
                     <td className="py-3 px-4 text-sm font-medium text-gray-800">
@@ -352,7 +351,7 @@ export default function VendasPage() {
                     </td>
                     <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => imprimirRecibo(v)}
+                        <button onClick={() => { setAutoEnviarWhatsapp(false); imprimirRecibo(v); }}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title={v.orcamento ? 'Imprimir Orçamento' : 'Imprimir Recibo'}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                         </button>
@@ -391,7 +390,10 @@ export default function VendasPage() {
               cliente={reciboData.cliente || {}}
               vendedor={reciboData.vendedor || {}}
               loja={reciboData.loja || { nome: 'Barato Pneus' }}
-              onClose={() => setShowRecibo(false)}
+              onClose={() => { setShowRecibo(false); setAutoEnviarWhatsapp(false); }}
+              autoEnviarWhatsapp={autoEnviarWhatsapp}
+              abaFallback={abaFallbackWhatsappRef.current}
+              onAutoEnviado={() => setAutoEnviarWhatsapp(false)}
             />
           </div>
         )}

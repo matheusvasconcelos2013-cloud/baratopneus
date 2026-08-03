@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatMoney, formatDate } from './FormElements';
 import { getLocalDateString } from '@/lib/dateUtils';
+import { linkWhatsapp, montarMensagemVenda } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 interface ReciboVendaProps {
@@ -12,49 +13,69 @@ interface ReciboVendaProps {
   vendedor: any;
   loja: any;
   onClose: () => void;
+  // Dispara o envio por WhatsApp assim que o recibo terminar de montar na
+  // tela, sem exigir um segundo clique — usado pelo atalho da listagem de
+  // Vendas, que já abre este componente pra poder gerar o PDF.
+  autoEnviarWhatsapp?: boolean;
+  onAutoEnviado?: () => void;
+  // Aba já aberta no clique original (antes do fetch assíncrono que monta
+  // este componente), usada como fallback caso o compartilhamento nativo
+  // não funcione — abrir uma aba nova aqui dentro, fora de um clique
+  // direto, seria bloqueado como popup pela maioria dos navegadores.
+  abaFallback?: Window | null;
 }
 
-export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onClose }: ReciboVendaProps) {
+export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onClose, autoEnviarWhatsapp, onAutoEnviado, abaFallback }: ReciboVendaProps) {
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
+  const autoEnviadoRef = useRef(false);
+
+  // Renderiza o mesmo elemento #recibo-venda como imagem e monta o PDF em
+  // memória (sem abrir aba nem baixar nada) — usado tanto pelo botão de
+  // impressão quanto pelo envio por WhatsApp.
+  const gerarPdfBlob = async (): Promise<Blob> => {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
+
+    const elemento = document.getElementById('recibo-venda');
+    if (!elemento) throw new Error('Recibo não encontrado');
+
+    // Força a captura a simular a largura de um desktop (ativa o layout
+    // md: do Tailwind), para o PDF sair igual independente do dispositivo
+    // que gerou a impressão.
+    const canvas = await html2canvas(elemento, {
+      scale: 2, useCORS: true, backgroundColor: '#ffffff',
+      windowWidth: 1024, windowHeight: elemento.scrollHeight,
+    });
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    if (imgHeight <= pageHeight) {
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    } else {
+      const escala = pageHeight / imgHeight;
+      const larguraFinal = imgWidth * escala;
+      const xOffset = (pageWidth - larguraFinal) / 2;
+      pdf.addImage(imgData, 'PNG', xOffset, 0, larguraFinal, pageHeight);
+    }
+
+    return pdf.output('blob');
+  };
 
   const handlePrint = async () => {
     // Abre a aba antes do processo assincrono para o iOS Safari nao bloquear como popup
     const novaAba = window.open('', '_blank');
     setGerandoPdf(true);
     try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ]);
-
-      const elemento = document.getElementById('recibo-venda');
-      if (!elemento) throw new Error('Recibo não encontrado');
-
-      // Força a captura a simular a largura de um desktop (ativa o layout
-      // md: do Tailwind), para o PDF sair igual independente do dispositivo
-      // que gerou a impressão.
-      const canvas = await html2canvas(elemento, {
-        scale: 2, useCORS: true, backgroundColor: '#ffffff',
-        windowWidth: 1024, windowHeight: elemento.scrollHeight,
-      });
-      const imgData = canvas.toDataURL('image/png');
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      if (imgHeight <= pageHeight) {
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      } else {
-        const escala = pageHeight / imgHeight;
-        const larguraFinal = imgWidth * escala;
-        const xOffset = (pageWidth - larguraFinal) / 2;
-        pdf.addImage(imgData, 'PNG', xOffset, 0, larguraFinal, pageHeight);
-      }
-
-      const blobUrl = pdf.output('bloburl') as unknown as string;
+      const blob = await gerarPdfBlob();
+      const blobUrl = URL.createObjectURL(blob);
       if (novaAba) {
         novaAba.location.href = blobUrl;
       } else {
@@ -72,6 +93,77 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
   // Orçamento é só uma simulação de valores enviada ao cliente — o documento
   // não pode se apresentar como comprovante de uma venda realizada.
   const ehOrcamento = !!venda.orcamento;
+
+  // aba: quando chamada por um clique direto no botão (dentro deste
+  // componente), abre a própria aba de fallback aqui, no início da função —
+  // ainda dá tempo de ser um gesto síncrono do usuário. Quando chamada pelo
+  // efeito de auto-envio (sem gesto próprio), usa a aba que já veio aberta
+  // via prop, aberta lá atrás no clique original da listagem.
+  const handleEnviarWhatsapp = async (abaPreAberta?: Window | null) => {
+    const telefone = cliente?.celular || cliente?.telefone;
+    if (!telefone) { toast.error('Cliente sem celular cadastrado'); abaPreAberta?.close(); return; }
+
+    const mensagem = montarMensagemVenda({
+      codigo: venda.codigo || venda.id,
+      clienteNome: cliente?.nome,
+      itens,
+      total: venda.valor_total || 0,
+      orcamento: ehOrcamento,
+    });
+    const link = linkWhatsapp(telefone, mensagem);
+    if (!link) { toast.error('Número de celular inválido'); abaPreAberta?.close(); return; }
+
+    const aba = abaPreAberta !== undefined ? abaPreAberta : window.open('', '_blank');
+
+    setEnviandoWhatsapp(true);
+    try {
+      const blob = await gerarPdfBlob();
+      const nomeArquivo = `${ehOrcamento ? 'orcamento' : 'recibo'}-${venda.codigo || venda.id}.pdf`;
+      const arquivo = new File([blob], nomeArquivo, { type: 'application/pdf' });
+
+      // No celular, o share sheet nativo entrega texto + PDF direto no
+      // WhatsApp escolhido. É o único jeito de anexar arquivo num link
+      // wa.me, que só aceita texto.
+      if (typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [arquivo] })) {
+        try {
+          await navigator.share({ files: [arquivo], text: mensagem });
+          aba?.close();
+          return;
+        } catch (shareErr: any) {
+          if (shareErr?.name === 'AbortError') { aba?.close(); return; } // usuário cancelou o compartilhamento
+          // Falhou por outro motivo (ex: perdeu o gesto do usuário no envio
+          // automático) — cai pro fallback de baixar + abrir o WhatsApp.
+          console.error('Falha ao compartilhar via Web Share API, usando fallback:', shareErr);
+        }
+      }
+
+      // Sem suporte a compartilhar arquivo (a maioria dos navegadores de
+      // desktop) ou o share falhou: baixa o PDF e abre o WhatsApp com a
+      // mensagem — só falta anexar o arquivo que acabou de ser baixado.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = nomeArquivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      if (aba) aba.location.href = link; else window.location.href = link;
+      toast.success('PDF baixado! Anexe o arquivo na conversa que abriu no WhatsApp.');
+    } catch (err: any) {
+      aba?.close();
+      toast.error('Não foi possível enviar o recibo por WhatsApp.');
+      console.error('Falha ao enviar recibo por WhatsApp:', err);
+    } finally {
+      setEnviandoWhatsapp(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoEnviarWhatsapp || autoEnviadoRef.current) return;
+    autoEnviadoRef.current = true;
+    handleEnviarWhatsapp(abaFallback).finally(() => onAutoEnviado?.());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEnviarWhatsapp]);
 
   const temPneuRemold = itens.some((i: any) =>
     (i.produto_nome || i.produtos?.nome || '').toLowerCase().includes('remold')
@@ -103,6 +195,16 @@ export default function ReciboVenda({ venda, itens, cliente, vendedor, loja, onC
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
           {gerandoPdf ? 'Gerando PDF...' : (ehOrcamento ? 'Imprimir Orçamento' : 'Imprimir Recibo')}
+        </button>
+        <button
+          onClick={() => handleEnviarWhatsapp()}
+          disabled={enviandoWhatsapp}
+          className="bg-emerald-600 text-white px-4 py-2.5 md:px-8 md:py-4 rounded-xl md:rounded-2xl shadow-2xl hover:bg-emerald-700 transition font-bold text-sm md:text-lg flex items-center gap-2 md:gap-3 disabled:opacity-60"
+        >
+          <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          {enviandoWhatsapp ? 'Enviando...' : 'Enviar com PDF por WhatsApp'}
         </button>
         <button
           onClick={onClose}
